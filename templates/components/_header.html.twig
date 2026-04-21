@@ -1,0 +1,172 @@
+{# Top Header Bar #}
+<header class="sticky top-0 z-30 bg-white border-b border-slate-200">
+    <div class="flex items-center justify-between h-16 px-4 lg:px-6">
+        {# Left side - Mobile menu + Page title #}
+        <div class="flex items-center space-x-4">
+            {# Mobile menu toggle #}
+            <button id="sidebar-toggle" class="lg:hidden p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+            
+        </div>
+        
+        {# Right side - User actions #}
+        <div class="flex items-center space-x-3">
+            {# Notifications bell #}
+            <div class="relative" id="notif-wrapper">
+                <button id="notif-btn" class="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span id="notif-badge" class="hidden absolute top-1 right-1 min-w-[16px] h-4 px-0.5 bg-[rgb(241,97,1)] text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none"></span>
+                </button>
+
+                {# Dropdown #}
+                <div id="notif-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-slate-200 z-50 overflow-hidden sm:right-0 max-sm:fixed max-sm:left-3 max-sm:right-3 max-sm:w-auto">
+                    <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                        <p class="text-sm font-semibold text-slate-800">Notifikace</p>
+                        <button id="notif-read-all" class="text-xs text-[rgb(241,97,1)] hover:underline">Označit vše</button>
+                    </div>
+                    <div id="notif-list" class="max-h-80 overflow-y-auto divide-y divide-slate-50">
+                        <p class="px-4 py-6 text-sm text-slate-400 text-center">Načítám…</p>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+            (function () {
+                const btn      = document.getElementById('notif-btn');
+                const dropdown = document.getElementById('notif-dropdown');
+                const badge    = document.getElementById('notif-badge');
+                const list     = document.getElementById('notif-list');
+                const readAll  = document.getElementById('notif-read-all');
+                let loaded     = false;
+
+                function relativeTime(iso) {
+                    const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+                    if (diff < 60)   return 'právě teď';
+                    if (diff < 3600) return Math.floor(diff / 60) + ' min';
+                    if (diff < 86400) return Math.floor(diff / 3600) + ' hod';
+                    return Math.floor(diff / 86400) + ' d';
+                }
+
+                function updateBadge(count) {
+                    if (count > 0) {
+                        badge.textContent = count > 99 ? '99+' : count;
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                }
+
+                function renderList(notifications) {
+                    if (!notifications.length) {
+                        list.innerHTML = '<p class="px-4 py-6 text-sm text-slate-400 text-center">Žádné notifikace</p>';
+                        return;
+                    }
+                    list.innerHTML = notifications.map(n => `
+                        <a href="${n.link ?? '#'}"
+                           class="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors ${n.isRead ? '' : 'bg-orange-50'}">
+                            <span class="mt-1.5 w-2 h-2 flex-shrink-0 rounded-full ${n.isRead ? 'bg-transparent' : 'bg-[rgb(241,97,1)]'}"></span>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-slate-800 truncate">${n.title}</p>
+                                ${n.body ? `<p class="text-xs text-slate-500 truncate">${n.body}</p>` : ''}
+                            </div>
+                            <span class="text-xs text-slate-400 flex-shrink-0">${relativeTime(n.createdAt)}</span>
+                        </a>
+                    `).join('');
+                }
+
+                async function loadNotifications() {
+                    try {
+                        const res  = await fetch('/notifications');
+                        const data = await res.json();
+                        updateBadge(data.unreadCount);
+                        renderList(data.notifications);
+                        loaded = true;
+                    } catch (e) {
+                        list.innerHTML = '<p class="px-4 py-6 text-sm text-red-400 text-center">Chyba načítání</p>';
+                    }
+                }
+
+                // Badge při načtení stránky
+                fetch('/notifications').then(r => r.json()).then(d => updateBadge(d.unreadCount)).catch(() => {});
+
+                // Otevřít / zavřít dropdown
+                btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    const isOpen = !dropdown.classList.contains('hidden');
+                    if (isOpen) {
+                        dropdown.classList.add('hidden');
+                    } else {
+                        dropdown.classList.remove('hidden');
+                        if (!loaded) loadNotifications();
+                        else loadNotifications(); // refresh při každém otevření
+                    }
+                });
+
+                // Označit vše
+                readAll.addEventListener('click', async function (e) {
+                    e.preventDefault();
+                    await fetch('/notifications/read-all', { method: 'POST' });
+                    updateBadge(0);
+                    loadNotifications();
+                });
+
+                // Zavřít při kliknutí mimo
+                document.addEventListener('click', function (e) {
+                    if (!document.getElementById('notif-wrapper').contains(e.target)) {
+                        dropdown.classList.add('hidden');
+                    }
+                });
+            })();
+            </script>
+            
+            {# User dropdown #}
+            <div class="relative" x-data="{ open: false }">
+                <button 
+                    onclick="this.nextElementSibling.classList.toggle('hidden')"
+                    class="flex items-center space-x-2 p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                >
+                    {% if app.user.profilePicture %}
+                    <img src="{{ asset('uploads/profiles/' ~ app.user.profilePicture) }}" 
+                         alt="{{ app.user.displayName }}"
+                         class="w-8 h-8 rounded-full object-cover">
+                    {% else %}
+                    <div class="w-8 h-8 rounded-full bg-[rgb(241,97,1)] flex items-center justify-center text-white text-sm font-medium">
+                        {{ app.user.email|first|upper }}
+                    </div>
+                    {% endif %}
+                    <span class="hidden sm:block text-sm font-medium text-slate-700">{{ app.user.name ?? app.user.email|split('@')[0] }}</span>
+                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                
+                {# Dropdown menu #}
+                <div class="hidden absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-50">
+                    <div class="px-4 py-3 border-b border-slate-100">
+                        <p class="text-sm font-medium text-slate-800">{{ app.user.name ?? 'Uživatel' }}</p>
+                        <p class="text-xs text-slate-500 truncate">{{ app.user.email }}</p>
+                    </div>
+                    <a href="{{ path('app_nastaveni_index') }}" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                        <svg class="w-4 h-4 mr-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        Nastavení
+                    </a>
+                    <div class="border-t border-slate-100 mt-1"></div>
+                    <a href="{{ path('app_logout') }}" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                        <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                        </svg>
+                        Odhlásit se
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>

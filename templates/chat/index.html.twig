@@ -1,0 +1,685 @@
+{% extends 'layout/chat.html.twig' %}
+
+{% block title %}Chat{% endblock %}
+
+{# Macro: renders a user avatar (photo or initials fallback) #}
+{% macro userAvatar(user, size) %}
+    {% set sz = size ?? 'md' %}
+    {% set cls = sz == 'sm' ? 'w-7 h-7 text-xs' : (sz == 'lg' ? 'w-11 h-11 text-sm' : 'w-9 h-9 text-sm') %}
+    <div class="{{ cls }} rounded-full flex-shrink-0 overflow-hidden bg-slate-400 flex items-center justify-center text-white font-semibold">
+        {% if user.profilePicture %}
+            <img src="{{ asset('uploads/profiles/' ~ user.profilePicture) }}"
+                 alt="{{ user.displayName }}"
+                 class="w-full h-full object-cover">
+        {% else %}
+            {{ user.displayName|first|upper }}
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% import _self as macros %}
+
+{% block content %}
+{{ importmap('firebase-messaging') }}
+<div hidden
+     data-firebase-config="{{ {
+         apiKey:            firebaseConfig.apiKey,
+         authDomain:        firebaseConfig.authDomain,
+         projectId:         firebaseConfig.projectId,
+         storageBucket:     firebaseConfig.storageBucket,
+         messagingSenderId: firebaseConfig.messagingSenderId,
+         appId:             firebaseConfig.appId
+     }|json_encode }}"
+     data-firebase-vapid-key="{{ firebaseConfig.vapidKey }}"
+     data-firebase-token-url="{{ path('app_chat_fcm_token') }}"></div>
+
+<div data-controller="chat"
+     class="flex h-full overflow-hidden bg-slate-100 p-2 gap-2 lg:p-4 lg:gap-4"
+     data-chat-ws-url-value="{{ wsUrl }}"
+     data-chat-connection-token-value="{{ connectionToken }}"
+     data-chat-subscription-token-value="{{ subscriptionToken ?? '' }}"
+     data-chat-konverzace-id-value="{{ aktivniKonverzace ? aktivniKonverzace.id : 0 }}"
+     data-chat-current-user-id-value="{{ app.user.id }}"
+     data-chat-csrf-token-value="{{ csrf_token('chat') }}"
+     data-chat-user-subscription-token-value="{{ userSubscriptionToken }}"
+     data-chat-user-id-value="{{ app.user.id }}"
+     data-chat-members-value="{{ aktivniKonverzace ? aktivniKonverzace.clenove|map(c => {'id': c.id, 'name': c.displayName})|json_encode : '[]' }}">
+
+    {# Image lightbox #}
+    <div id="chat-lightbox"
+         class="fixed inset-0 z-50 hidden items-center justify-center bg-black/90 p-4"
+         data-chat-target="lightbox"
+         data-action="click->chat#closeLightbox">
+        <button type="button"
+                data-action="click->chat#closeLightbox"
+                class="absolute top-4 right-4 text-white/70 hover:text-white transition-colors">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+        <img id="lightbox-img" src="" alt=""
+             class="max-w-full max-h-full object-contain rounded-xl shadow-2xl select-none"
+             onclick="event.stopPropagation()">
+    </div>
+
+    {# Reaction info tooltip (shared, positioned by JS) #}
+    <div id="reaction-tooltip"
+         class="fixed z-50 hidden bg-slate-800 text-white text-xs rounded-xl px-3 py-2 shadow-xl pointer-events-none max-w-xs">
+    </div>
+
+    {# ── Left panel: conversation list ── #}
+    <div class="{{ aktivniKonverzace ? 'hidden lg:flex lg:w-80 lg:flex-shrink-0' : 'flex flex-1 lg:flex-none lg:w-80 lg:flex-shrink-0' }} flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+
+        {# Header #}
+        <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+            <h2 class="text-lg font-bold text-slate-800">Zprávy</h2>
+            <button type="button"
+                    data-action="click->chat#openNewGroupModal"
+                    class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
+                    title="Nová skupina">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+            </button>
+        </div>
+
+        {# New direct message button #}
+        <div class="px-3 py-2 border-b border-slate-100">
+            <button type="button"
+                    data-action="click->chat#openNewDirectModal"
+                    class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 4v16m8-8H4"/>
+                </svg>
+                Nová zpráva
+            </button>
+        </div>
+
+        {# Conversation list #}
+        <div class="flex-1 overflow-y-auto">
+            {% for k in konverzace %}
+                {% set isActive = aktivniKonverzace and aktivniKonverzace.id == k.id %}
+                {% set displayName = k.getDisplayName(app.user) %}
+                {% set posledni = k.getPosledniZprava() %}
+                {% set unread = (not isActive) and (unreadCounts[k.id] ?? 0) > 0 %}
+
+                <a href="{{ path('app_chat_show', {id: k.id}) }}"
+                   data-konverzace-id="{{ k.id }}"
+                   class="flex items-center gap-3 px-4 py-3 transition-colors relative {{ isActive ? 'bg-orange-50' : 'hover:bg-slate-50' }}">
+                    {% if isActive %}
+                        <span class="absolute left-0 top-2 bottom-2 w-1 bg-[rgb(241,97,1)] rounded-r-full"></span>
+                    {% endif %}
+
+                    {# Avatar #}
+                    {% if k.typ == 'ZAKAZKA' %}
+                        <div class="flex-shrink-0 w-11 h-11 rounded-full bg-blue-500 flex items-center justify-center text-white">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                        </div>
+                    {% elseif k.typ == 'SKUPINA' %}
+                        <div class="flex-shrink-0 w-11 h-11 rounded-full bg-purple-500 flex items-center justify-center text-white">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                        </div>
+                    {% else %}
+                        {% set otherMember = k.getOtherMember(app.user) %}
+                        {% if otherMember %}
+                            {{ macros.userAvatar(otherMember, 'lg') }}
+                        {% else %}
+                            <div class="flex-shrink-0 w-11 h-11 rounded-full bg-slate-400 flex items-center justify-center text-white font-semibold text-sm">
+                                {{ k.getInitial(app.user) }}
+                            </div>
+                        {% endif %}
+                    {% endif %}
+
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-baseline justify-between">
+                            <span class="text-sm {{ unread ? 'font-bold text-slate-900' : 'font-semibold text-slate-800' }} truncate" data-konverzace-name>{{ displayName }}</span>
+                            <div class="flex items-center gap-1.5 flex-shrink-0 ml-1">
+                                {% if posledni %}
+                                    <span class="text-xs text-slate-400" data-last-time>{{ posledni.createdAt|date('H:i') }}</span>
+                                {% else %}
+                                    <span class="text-xs text-slate-400 hidden" data-last-time></span>
+                                {% endif %}
+                                {% if unread %}
+                                    <span class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[rgb(241,97,1)] text-white text-[10px] font-bold" data-unread-badge>
+                                        {{ unreadCounts[k.id] > 99 ? '99+' : unreadCounts[k.id] }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <p class="text-xs {{ unread ? 'text-slate-700 font-medium' : 'text-slate-500' }} truncate mt-0.5" data-last-message>
+                            {% if posledni %}
+                                {% if posledni.autor.id == app.user.id %}Ty: {% endif %}{{ posledni.obsah|u.truncate(40, '…') }}
+                            {% else %}
+                                <span class="italic">Žádné zprávy</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </a>
+            {% else %}
+                <div class="px-4 py-8 text-center text-slate-400 text-sm">
+                    Zatím žádné konverzace.<br>Zahaj novou zprávu výše.
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# ── Right panel: message area ── #}
+    <div class="{{ aktivniKonverzace ? 'flex' : 'hidden lg:flex' }} flex-1 relative overflow-hidden bg-white rounded-2xl border border-slate-200 shadow-sm">
+    <div class="flex flex-col flex-1 overflow-hidden min-w-0">
+
+        {% if aktivniKonverzace %}
+            {% set isGroup = aktivniKonverzace.typ == 'SKUPINA' or aktivniKonverzace.typ == 'ZAKAZKA' %}
+            {# Conversation header #}
+            <div class="flex-shrink-0 border-b border-slate-200 bg-white">
+                <div class="px-4 py-3 flex items-center gap-3">
+                    {# Back button – mobile only #}
+                    <a href="{{ path('app_chat_index') }}"
+                       class="lg:hidden flex-shrink-0 p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
+                       title="Zpět">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </a>
+                    {% if aktivniKonverzace.typ == 'ZAKAZKA' %}
+                        <div class="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center text-white flex-shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                        </div>
+                    {% elseif aktivniKonverzace.typ == 'SKUPINA' %}
+                        <div class="w-9 h-9 rounded-full bg-purple-500 flex items-center justify-center text-white flex-shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                        </div>
+                    {% else %}
+                        {% set headerOther = aktivniKonverzace.getOtherMember(app.user) %}
+                        {% if headerOther %}
+                            {{ macros.userAvatar(headerOther, 'md') }}
+                        {% else %}
+                            <div class="w-9 h-9 rounded-full bg-slate-400 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                                {{ aktivniKonverzace.getInitial(app.user) }}
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-semibold text-slate-800 text-sm leading-tight">
+                            {{ aktivniKonverzace.getDisplayName(app.user) }}
+                        </h3>
+                        <p class="text-xs text-slate-400">
+                            {{ aktivniKonverzace.clenove|length }} členů
+                        </p>
+                    </div>
+                    {% if aktivniKonverzace.typ == 'ZAKAZKA' and aktivniKonverzace.zakazka %}
+                        <a href="{{ path('app_zakazka_detail', {id: aktivniKonverzace.zakazka.id}) }}"
+                           class="flex-shrink-0 p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
+                           title="Přejít na zakázku">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                            </svg>
+                        </a>
+                    {% endif %}
+                    <button type="button"
+                            data-action="click->chat#toggleInfoPanel"
+                            class="flex-shrink-0 p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
+                            title="Informace o konverzaci">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </button>
+                </div>
+
+                {% if isGroup %}
+                    {# Members panel – hidden by default #}
+                    <div id="members-panel" class="hidden px-6 pb-3 border-t border-slate-100 pt-3">
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Členové ({{ aktivniKonverzace.clenove|length }})</p>
+                        <div class="flex flex-wrap gap-3">
+                            {% for clen in aktivniKonverzace.clenove %}
+                                <div class="flex items-center gap-2">
+                                    {{ macros.userAvatar(clen, 'sm') }}
+                                    <span class="text-sm text-slate-700 {{ clen.id == app.user.id ? 'font-semibold' : '' }}">
+                                        {{ clen.displayName }}{% if clen.id == app.user.id %} <span class="text-slate-400 font-normal">(ty)</span>{% endif %}
+                                    </span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            {# Pinned message banner #}
+            {% set pinned = aktivniKonverzace ? aktivniKonverzace.pinnedZprava : null %}
+            <div id="pin-banner"
+                 class="{{ pinned ? 'flex' : 'hidden' }} items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-100 text-sm cursor-pointer group/pin"
+                 data-action="click->chat#scrollToPin">
+                <svg class="w-3.5 h-3.5 text-amber-500 flex-shrink-0 rotate-45" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5v6h2v-6h5v-2l-2-2z"/>
+                </svg>
+                <div class="flex-1 min-w-0">
+                    <span class="text-[10px] font-semibold text-amber-600 uppercase tracking-wide">Připnutá zpráva</span>
+                    <p class="truncate text-slate-700 text-xs leading-snug" id="pin-text">{{ pinned ? pinned.obsah|u.truncate(100, '…') : '' }}</p>
+                </div>
+                <button type="button"
+                        id="pin-unpin-btn"
+                        class="flex-shrink-0 p-1 rounded-full hover:bg-amber-100 text-amber-400 hover:text-amber-600 transition-colors opacity-0 group-hover/pin:opacity-100"
+                        data-action="click->chat#unpinMessage"
+                        data-pin-zprava-id="{{ pinned ? pinned.id : '' }}"
+                        title="Odepnout">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+                <input type="hidden" id="pin-zprava-id" value="{{ pinned ? pinned.id : '' }}">
+            </div>
+
+            {# Messages area #}
+            <div class="flex-1 overflow-y-auto overflow-x-hidden px-3 py-3 lg:px-6 lg:py-4 space-y-1 opacity-0 transition-opacity duration-150" data-chat-target="messages">
+                {# Load-more spinner – shown while fetching older messages #}
+                <div id="load-more-spinner" class="hidden flex justify-center py-3">
+                    <svg class="w-5 h-5 animate-spin text-slate-400" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                </div>
+                {# End-of-history marker – shown when all messages are loaded #}
+                <div id="load-more-end" class="hidden text-center py-2 text-xs text-slate-400">Začátek konverzace</div>
+                {% set prevAutorId = null %}
+                {% for zprava in zpravy %}
+                    {% set isOwn = zprava.autor.id == app.user.id %}
+                    {% set sameAuthor = prevAutorId == zprava.autor.id %}
+                    {% set showName = not isOwn and (aktivniKonverzace.typ == 'SKUPINA' or aktivniKonverzace.typ == 'ZAKAZKA') %}
+
+                    <div class="flex {{ isOwn ? 'justify-end' : 'justify-start' }} {{ sameAuthor ? 'mt-0.5' : 'mt-3' }}"
+                         id="zprava-{{ zprava.id }}">
+                        <div class="max-w-xs lg:max-w-md group relative">
+
+                            {# Author name (groups only, others only) #}
+                            {% if showName and not sameAuthor %}
+                                <p class="text-xs text-slate-500 ml-1 mb-1">{{ zprava.autor.displayName }}</p>
+                            {% endif %}
+
+                            {# Reply quote #}
+                            {% if zprava.replyTo %}
+                                <div class="mb-1 px-3 py-1.5 rounded-lg border-l-2 border-slate-400 bg-slate-100 text-xs text-slate-600">
+                                    <span class="font-semibold">{{ zprava.replyTo.autor.displayName }}</span>
+                                    <p class="truncate">{{ zprava.replyTo.obsah|u.truncate(80, '…') }}</p>
+                                </div>
+                            {% endif %}
+
+                            {# Bubble #}
+                            {% set priloha0 = zprava.prilohy|first %}
+                            {% set isImageOnly = zprava.prilohy|length > 0 and priloha0.mimeType starts with 'image/' and not zprava.obsah %}
+                            <div class="relative rounded-2xl text-sm leading-relaxed break-words
+                                {{ isImageOnly
+                                    ? ''
+                                    : ('px-4 py-2 ' ~ (isOwn
+                                        ? 'bg-[rgb(241,97,1)] text-white rounded-br-sm'
+                                        : 'bg-slate-100 text-slate-800 rounded-bl-sm')) }}">
+
+                                {# Attachment #}
+                                {% if zprava.prilohy|length > 0 %}
+                                    {% set priloha = zprava.prilohy|first %}
+                                    {% if priloha.mimeType starts with 'image/' %}
+                                        <div class="mb-2">
+                                            <a href="{{ path('app_chat_priloha', {id: priloha.id}) }}" target="_blank">
+                                                <img src="{{ path('app_chat_priloha', {id: priloha.id}) }}"
+                                                     class="max-w-full rounded-xl max-h-48 object-contain"
+                                                     alt="{{ priloha.originalName }}">
+                                            </a>
+                                        </div>
+                                    {% else %}
+                                        <a href="{{ path('app_chat_priloha', {id: priloha.id}) }}"
+                                           download="{{ priloha.originalName }}"
+                                           class="flex items-center gap-2 mb-2 px-3 py-2 rounded-xl {{ isOwn ? 'bg-white/20 hover:bg-white/30' : 'bg-slate-200 hover:bg-slate-300' }} transition-colors text-sm">
+                                            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                                            </svg>
+                                            <span class="truncate max-w-[180px]">{{ priloha.originalName }}</span>
+                                            <span class="flex-shrink-0 opacity-60 text-xs">
+                                                {% if priloha.size > 1048576 %}
+                                                    {{ (priloha.size / 1048576)|round(1) }} MB
+                                                {% else %}
+                                                    {{ (priloha.size / 1024)|round }} KB
+                                                {% endif %}
+                                            </span>
+                                        </a>
+                                    {% endif %}
+                                {% endif %}
+
+                                {{ zprava.obsah|linkify }}
+
+                                {# Hover action buttons (reply + reaction) #}
+                                <div class="absolute -top-3 {{ isOwn ? 'right-full pr-1' : 'left-full pl-1' }} flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+
+                                    {# Reaction trigger + picker #}
+                                    <div class="relative">
+                                        <button type="button"
+                                                class="p-1 rounded-full bg-white shadow text-base leading-none hover:scale-110 transition-transform"
+                                                data-action="click->chat#toggleReactionPicker"
+                                                data-zprava-id="{{ zprava.id }}"
+                                                title="Reagovat">😊</button>
+                                        <div class="reaction-picker absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden z-30 bg-white rounded-full shadow-xl border border-slate-100 px-2.5 py-1.5 flex gap-1"
+                                             id="reaction-picker-{{ zprava.id }}">
+                                            {% for e in ['👍','❤️','😂','😮','😢','😡'] %}
+                                                <button type="button"
+                                                        class="text-xl hover:scale-125 transition-transform p-0.5"
+                                                        data-action="click->chat#addReaction"
+                                                        data-zprava-id="{{ zprava.id }}"
+                                                        data-emoji="{{ e }}">{{ e }}</button>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+
+                                    {# Reply button #}
+                                    <button type="button"
+                                            class="p-1 rounded-full bg-white shadow text-slate-500 hover:text-slate-800"
+                                            data-action="click->chat#setReply"
+                                            data-message-id="{{ zprava.id }}"
+                                            data-message-author="{{ zprava.autor.displayName }}"
+                                            data-message-text="{{ zprava.obsah|u.truncate(60, '…') }}"
+                                            title="Odpovědět">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+                                        </svg>
+                                    </button>
+
+                                    {# Pin button #}
+                                    <button type="button"
+                                            class="p-1 rounded-full bg-white shadow text-slate-500 hover:text-amber-500"
+                                            data-action="click->chat#pinMessage"
+                                            data-pin-zprava-id="{{ zprava.id }}"
+                                            title="{{ aktivniKonverzace and aktivniKonverzace.pinnedZprava and aktivniKonverzace.pinnedZprava.id == zprava.id ? 'Odepnout' : 'Připnout' }}">
+                                        <svg class="w-3.5 h-3.5 rotate-45" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5v6h2v-6h5v-2l-2-2z"/>
+                                        </svg>
+                                    </button>
+
+                                </div>
+                            </div>
+
+                            {# Reactions display #}
+                            {% set groupedReakce = zprava.groupedReakce %}
+                            <div class="flex {{ isOwn ? 'justify-end' : 'justify-start' }} flex-wrap gap-1 mt-0.5 px-1 min-h-0"
+                                 id="reakce-{{ zprava.id }}">
+                                {% for r in groupedReakce %}
+                                    {% set isOwnReakce = app.user.id in r.userIds %}
+                                    <button type="button"
+                                            class="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm bg-white shadow-sm border transition-shadow hover:shadow-md
+                                                   {{ isOwnReakce ? 'border-[rgb(241,97,1)] bg-orange-50' : 'border-slate-200' }}"
+                                            data-action="click->chat#showReactionInfo"
+                                            data-emoji="{{ r.emoji }}"
+                                            data-user-names="{{ r.userNames|join(', ') }}">
+                                        <span>{{ r.emoji }}</span>
+                                        {% if r.count > 1 %}<span class="text-xs font-medium text-slate-600">{{ r.count }}</span>{% endif %}
+                                    </button>
+                                {% endfor %}
+                            </div>
+
+                            {# Time #}
+                            <p class="text-xs {{ isOwn ? 'text-right' : 'text-left' }} text-slate-400 mt-0.5 px-1">
+                                {{ zprava.createdAt|date('H:i') }}
+                            </p>
+                        </div>
+                    </div>
+                    {% set prevAutorId = zprava.autor.id %}
+                {% endfor %}
+            </div>
+
+            {# Typing indicator #}
+            <div class="px-6 py-1 h-6 flex-shrink-0">
+                <p class="text-xs text-slate-400 italic hidden" data-chat-target="typing"></p>
+            </div>
+
+            {# Input area #}
+            <div class="flex-shrink-0 border-t border-slate-200 bg-white">
+
+                {# Reply preview #}
+                <div class="hidden px-4 pt-3 pb-1 flex items-center gap-2 bg-slate-50 border-b border-slate-200"
+                     data-chat-target="replyPreview">
+                    <div class="flex-1 text-xs text-slate-600 border-l-2 border-[rgb(241,97,1)] pl-2">
+                        <span data-chat-target="replyText"></span>
+                    </div>
+                    <button type="button"
+                            data-action="click->chat#clearReply"
+                            class="p-1 text-slate-400 hover:text-slate-600">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <form data-action="submit->chat#sendMessage" class="flex flex-col px-4 py-3 gap-2 relative">
+                    {# Mention dropdown #}
+                    <div class="hidden absolute bottom-full left-0 right-0 mb-1 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-20 max-h-56 overflow-y-auto"
+                         data-chat-target="mentionDropdown"></div>
+                    <input type="hidden" data-chat-target="replyId">
+                    <input type="file"
+                           data-chat-target="fileInput"
+                           data-action="change->chat#onFileSelected"
+                           accept=".pdf,.jpg,.jpeg,.png,.zip,.csv,.xml,.json"
+                           class="hidden">
+
+                    {# File preview bar – hidden by default #}
+                    <div class="hidden items-center gap-2 px-3 py-2 bg-slate-100 rounded-xl text-sm text-slate-700"
+                         data-chat-target="filePreview">
+                        {# Image thumbnail (shown only for images) #}
+                        <img data-chat-target="fileThumb"
+                             class="hidden w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                             alt="">
+                        {# Paperclip icon (shown for non-images) #}
+                        <svg data-chat-target="fileIcon" class="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                        </svg>
+                        <span class="truncate flex-1" data-chat-target="fileName"></span>
+                        <button type="button" data-action="click->chat#_clearFile" class="text-slate-400 hover:text-slate-600 flex-shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="flex items-end gap-2">
+                        <button type="button"
+                                data-action="click->chat#openFilePicker"
+                                class="flex-shrink-0 w-10 h-10 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors"
+                                title="Přiložit soubor">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                            </svg>
+                        </button>
+                        <textarea
+                            data-chat-target="input"
+                            data-action="keydown->chat#onInputKeydown input->chat#onTyping"
+                            rows="1"
+                            placeholder="Napsat zprávu…"
+                            class="flex-1 resize-none rounded-2xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent bg-slate-50 max-h-32 overflow-y-auto"
+                            style="min-height: 42px;"
+                        ></textarea>
+                        <button type="submit"
+                                class="flex-shrink-0 w-10 h-10 rounded-full bg-[rgb(241,97,1)] hover:bg-orange-600 text-white flex items-center justify-center transition-colors">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+        {% else %}
+            {# Empty state #}
+            <div class="flex-1 flex flex-col items-center justify-center text-slate-400 select-none bg-slate-50 rounded-2xl">
+                <svg class="w-16 h-16 mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                </svg>
+                <p class="text-base font-medium text-slate-500">Vyber konverzaci</p>
+                <p class="text-sm mt-1">nebo začni novou zprávu</p>
+            </div>
+        {% endif %}
+    </div>{# /inner chat column #}
+
+    {# ── Info panel ── #}
+    {% if aktivniKonverzace %}
+    <div class="hidden absolute inset-0 z-20 flex-col bg-white overflow-y-auto
+                lg:relative lg:inset-auto lg:z-auto lg:w-80 lg:flex-shrink-0 lg:border-l lg:border-slate-200"
+         data-chat-target="infoPanel">
+
+        {# Header #}
+        <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200 flex-shrink-0">
+            <h3 class="font-semibold text-slate-800 text-sm">Informace</h3>
+            <button type="button"
+                    data-action="click->chat#toggleInfoPanel"
+                    class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        {# Conversation info #}
+        <div class="px-4 py-4 border-b border-slate-100 flex flex-col items-center gap-2 text-center">
+            {% if aktivniKonverzace.typ == 'ZAKAZKA' %}
+                <div class="w-14 h-14 rounded-full bg-blue-500 flex items-center justify-center text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                </div>
+            {% elseif aktivniKonverzace.typ == 'SKUPINA' %}
+                <div class="w-14 h-14 rounded-full bg-purple-500 flex items-center justify-center text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </div>
+            {% else %}
+                {% set infoPanelOther = aktivniKonverzace.getOtherMember(app.user) %}
+                {{ macros.userAvatar(infoPanelOther ?? app.user, 'lg') }}
+            {% endif %}
+            <div>
+                <p class="font-semibold text-slate-800 text-sm">{{ aktivniKonverzace.getDisplayName(app.user) }}</p>
+                <p class="text-xs text-slate-400 mt-0.5">{{ aktivniKonverzace.clenove|length }} členů</p>
+            </div>
+        </div>
+
+        {# Members (groups only) #}
+        {% if isGroup %}
+        <div class="px-4 py-3 border-b border-slate-100">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Členové</p>
+            <div class="space-y-2">
+                {% for clen in aktivniKonverzace.clenove %}
+                    <div class="flex items-center gap-2">
+                        {{ macros.userAvatar(clen, 'sm') }}
+                        <span class="text-sm text-slate-700 truncate">
+                            {{ clen.displayName }}{% if clen.id == app.user.id %} <span class="text-slate-400 text-xs">(ty)</span>{% endif %}
+                        </span>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {# Shared files – loaded lazily by JS #}
+        <div class="px-4 py-3 flex-1">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Sdílené soubory</p>
+            <div id="shared-files-list" class="space-y-1">
+                <p class="text-xs text-slate-400 italic">Načítání…</p>
+            </div>
+        </div>
+
+    </div>
+    {% endif %}
+
+    </div>{# /outer right panel #}
+
+    {# ── Modal: New direct message ── #}
+<div id="modal-direct"
+     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50"
+     data-chat-target="directModal">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+            <h3 class="font-semibold text-slate-800">Nová zpráva</h3>
+            <button type="button" data-action="click->chat#closeDirectModal" class="text-slate-400 hover:text-slate-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="px-6 py-4 max-h-72 overflow-y-auto space-y-1">
+            {% for u in vsichniUzivatele %}
+                {% if u.id != app.user.id %}
+                    <form action="{{ path('app_chat_direct', {userId: u.id}) }}" method="POST">
+                        <input type="hidden" name="_token" value="{{ csrf_token('chat-direct-' ~ u.id) }}">
+                        <button type="submit"
+                                class="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-50 text-left transition-colors">
+                            {{ macros.userAvatar(u, 'md') }}
+                            <span class="text-sm text-slate-800 font-medium">{{ u.displayName }}</span>
+                        </button>
+                    </form>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{# ── Modal: New group ── #}
+<div id="modal-group"
+     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50"
+     data-chat-target="groupModal">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+            <h3 class="font-semibold text-slate-800">Nová skupina</h3>
+            <button type="button" data-action="click->chat#closeGroupModal" class="text-slate-400 hover:text-slate-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <form action="{{ path('app_chat_skupina') }}" method="POST" class="px-6 py-4 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Název skupiny</label>
+                <input type="text" name="nazev" required
+                       class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgb(241,97,1)]"
+                       placeholder="Název skupiny…">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Členové</label>
+                <div class="space-y-1 max-h-48 overflow-y-auto">
+                    {% for u in vsichniUzivatele %}
+                        {% if u.id != app.user.id %}
+                            <label class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-50 cursor-pointer">
+                                <input type="checkbox" name="clenove[]" value="{{ u.id }}"
+                                       class="w-4 h-4 rounded accent-[rgb(241,97,1)]">
+                                {{ macros.userAvatar(u, 'sm') }}
+                                <span class="text-sm text-slate-800">{{ u.displayName }}</span>
+                            </label>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            <button type="submit"
+                    class="w-full py-2.5 rounded-xl bg-[rgb(241,97,1)] hover:bg-orange-600 text-white text-sm font-semibold transition-colors">
+                Vytvořit skupinu
+            </button>
+        </form>
+    </div>
+</div>{# end group modal #}
+
+</div>{# end chat controller #}
+{% endblock %}

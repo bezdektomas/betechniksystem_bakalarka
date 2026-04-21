@@ -1,0 +1,104 @@
+{% use 'form_div_layout.html.twig' %}
+
+{# === TEXT INPUT === #}
+{% block form_widget_simple %}
+    {% set type = type|default('text') %}
+    {% set attr = attr|merge({
+        'class': (attr.class|default('') ~ ' block w-full px-4 py-3 border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent transition-all bg-white')|trim
+    }) %}
+    {{ parent() }}
+{% endblock %}
+
+{# === TEXTAREA === #}
+{% block textarea_widget %}
+    {% set attr = attr|merge({
+        'class': (attr.class|default('') ~ ' block w-full px-4 py-3 border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent transition-all resize-y')|trim
+    }) %}
+    {{ parent() }}
+{% endblock %}
+
+{# === SELECT (CHOICE) === #}
+{% block choice_widget_collapsed %}
+    {% set attr = attr|merge({
+        'class': (attr.class|default('') ~ ' block w-full px-4 py-3 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent transition-all bg-white appearance-none cursor-pointer')|trim
+    }) %}
+    <div class="relative">
+        {{ parent() }}
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+            <svg class="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+        </div>
+    </div>
+{% endblock %}
+
+{# === MULTIPLE SELECT === #}
+{% block choice_widget_expanded %}
+    <div {{ block('widget_container_attributes') }} class="space-y-2">
+        {% for child in form %}
+            <div class="flex items-center">
+                {{ form_widget(child) }}
+                {{ form_label(child, null, {label_attr: {'class': 'ml-3 text-sm text-slate-700 cursor-pointer'}}) }}
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}
+
+{# === CHECKBOX === #}
+{% block checkbox_widget %}
+    {% set attr = attr|merge({
+        'class': (attr.class|default('') ~ ' h-5 w-5 rounded border-slate-300 text-[rgb(241,97,1)] focus:ring-[rgb(241,97,1)] focus:ring-2 cursor-pointer')|trim
+    }) %}
+    {{ parent() }}
+{% endblock %}
+
+{# === RADIO === #}
+{% block radio_widget %}
+    {% set attr = attr|merge({
+        'class': (attr.class|default('') ~ ' h-5 w-5 border-slate-300 text-[rgb(241,97,1)] focus:ring-[rgb(241,97,1)] focus:ring-2 cursor-pointer')|trim
+    }) %}
+    {{ parent() }}
+{% endblock %}
+
+{# === LABELS === #}
+{% block form_label %}
+    {% if label is not same as(false) %}
+        {% set label_attr = label_attr|merge({
+            'class': (label_attr.class|default('') ~ ' block text-sm font-medium text-slate-700 mb-2')|trim
+        }) %}
+        {{ parent() }}
+    {% endif %}
+{% endblock %}
+
+{# === ERRORS === #}
+{% block form_errors %}
+    {% if errors|length > 0 %}
+        <div class="mt-2">
+            {% for error in errors %}
+                <p class="text-sm text-red-600 flex items-center">
+                    <svg class="w-4 h-4 mr-1.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    </svg>
+                    {{ error.message }}
+                </p>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endblock %}
+
+{# === ROW WRAPPER === #}
+{% block form_row %}
+    <div class="mb-4">
+        {{ form_label(form) }}
+        {{ form_widget(form) }}
+        {{ form_errors(form) }}
+    </div>
+{% endblock %}
+
+{# === BUTTON === #}
+{% block button_widget %}
+    {% set attr = attr|merge({
+        'class': (attr.class|default('') ~ ' inline-flex items-center justify-center px-6 py-3 bg-[rgb(241,97,1)] text-white font-semibold rounded-xl hover:bg-[rgb(230,90,0)] focus:outline-none focus:ring-2 focus:ring-[rgb(241,97,1)] focus:ring-offset-2 transition-all shadow-sm')|trim
+    }) %}
+    {{ parent() }}
+{% endblock %}

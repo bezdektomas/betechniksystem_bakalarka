@@ -1,0 +1,57 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<div class="flex min-h-screen overflow-hidden">
+    {# Sidebar #}
+    {% include 'components/_sidebar.html.twig' %}
+    
+    {# Main Content #}
+    <div class="flex-1 flex flex-col lg:ml-64 min-w-0">
+        {# Top Header #}
+        {% include 'components/_header.html.twig' %}
+        
+        {# Page Content #}
+        <main class="flex-1 p-4 lg:p-6 overflow-x-hidden">
+            {% block content %}{% endblock %}
+        </main>
+        
+        {# Footer #}
+        <footer class="bg-white border-t border-slate-200 py-4 px-6">
+            <div class="flex flex-col sm:flex-row justify-between items-center text-sm text-slate-500">
+                <span>© {{ "now"|date("Y") }} Betechnik IS</span>
+                <span class="mt-2 sm:mt-0">Verze 2.0</span>
+            </div>
+        </footer>
+    </div>
+</div>
+
+{# Mobile sidebar toggle script #}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebarClose = document.getElementById('sidebar-close');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        
+        function openSidebar() {
+            sidebar.classList.remove('-translate-x-full');
+            sidebarOverlay.classList.remove('hidden');
+        }
+        
+        function closeSidebar() {
+            sidebar.classList.add('-translate-x-full');
+            sidebarOverlay.classList.add('hidden');
+        }
+        
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', openSidebar);
+        }
+        if (sidebarClose) {
+            sidebarClose.addEventListener('click', closeSidebar);
+        }
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', closeSidebar);
+        }
+    });
+</script>
+{% endblock %}

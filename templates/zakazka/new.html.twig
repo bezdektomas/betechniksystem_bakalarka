@@ -1,0 +1,125 @@
+{% extends 'layout/dashboard.html.twig' %}
+
+{% block title %}Nová zakázka | Betechnik IS{% endblock %}
+
+{% block content %}
+{# Breadcrumb #}
+<nav class="flex items-center space-x-2 text-sm mb-6">
+    <a href="{{ path('app_zakazka_list') }}" class="text-slate-500 hover:text-[rgb(241,97,1)] transition-colors">Zakázky</a>
+    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+    </svg>
+    <span class="text-slate-800 font-medium">Nová zakázka</span>
+</nav>
+
+{# Header #}
+<div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+    <div class="flex-1">
+        <h1 class="text-2xl font-bold text-slate-800">Nová zakázka</h1>
+        <p class="text-slate-500 mt-1">Vytvořte novou zakázku</p>
+    </div>
+</div>
+
+<div>
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-6">
+            {{ form_start(form, {'attr': {'class': 'space-y-6', 'novalidate': 'novalidate'}}) }}
+            
+            {# Název #}
+            <div>
+                {{ form_label(form.name, null, {'label_attr': {'class': 'block text-sm font-medium text-slate-700 mb-2'}}) }}
+                {{ form_widget(form.name) }}
+                {{ form_errors(form.name) }}
+            </div>
+            
+            {# Popis #}
+            <div>
+                {{ form_label(form.description, null, {'label_attr': {'class': 'block text-sm font-medium text-slate-700 mb-2'}}) }}
+                {{ form_widget(form.description) }}
+                {{ form_errors(form.description) }}
+            </div>
+            
+            {# Grid: Cena + Status #}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    {{ form_label(form.price, null, {'label_attr': {'class': 'block text-sm font-medium text-slate-700 mb-2'}}) }}
+                    {{ form_widget(form.price) }}
+                    {{ form_errors(form.price) }}
+                </div>
+                <div>
+                    {{ form_label(form.status, null, {'label_attr': {'class': 'block text-sm font-medium text-slate-700 mb-2'}}) }}
+                    {{ form_widget(form.status) }}
+                    {{ form_errors(form.status) }}
+                </div>
+            </div>
+            
+            {# Grid: Datum realizace + URL #}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    {{ form_label(form.realizace, null, {'label_attr': {'class': 'block text-sm font-medium text-slate-700 mb-2'}}) }}
+                    {{ form_widget(form.realizace) }}
+                    {{ form_errors(form.realizace) }}
+                </div>
+                <div>
+                    {{ form_label(form.url, null, {'label_attr': {'class': 'block text-sm font-medium text-slate-700 mb-2'}}) }}
+                    {{ form_widget(form.url) }}
+                    {{ form_errors(form.url) }}
+                </div>
+            </div>
+            
+            {# Poznámky #}
+            <div>
+                {{ form_label(form.notes, null, {'label_attr': {'class': 'block text-sm font-medium text-slate-700 mb-2'}}) }}
+                {{ form_widget(form.notes) }}
+                {{ form_errors(form.notes) }}
+            </div>
+            
+            {# Přiřazení uživatelé #}
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-3">Přiřazení uživatelé</label>
+                <div class="bg-slate-50 rounded-xl p-4 space-y-2">
+                    {% for child in form.assignedUsers %}
+                        {% set userId = child.vars.value %}
+                        {% set user = null %}
+                        {% for u in users %}
+                            {% if u.id == userId %}
+                                {% set user = u %}
+                            {% endif %}
+                        {% endfor %}
+                        <label class="flex items-center cursor-pointer group p-2 rounded-lg hover:bg-slate-100 transition-colors">
+                            {{ form_widget(child, {'attr': {'class': 'w-4 h-4 text-[rgb(241,97,1)] border-slate-300 rounded focus:ring-[rgb(241,97,1)] focus:ring-2'}}) }}
+                            <div class="ml-3 flex items-center gap-3">
+                                {% if user and user.profilePicture %}
+                                <img src="{{ asset('uploads/profiles/' ~ user.profilePicture) }}" 
+                                     alt="{{ user.displayName }}"
+                                     class="w-8 h-8 rounded-full object-cover border border-slate-200">
+                                {% else %}
+                                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center text-white text-sm font-medium border border-slate-200">
+                                    {{ child.vars.label|first|upper }}
+                                </div>
+                                {% endif %}
+                                <span class="text-slate-700 group-hover:text-slate-900 font-medium">{{ child.vars.label }}</span>
+                            </div>
+                        </label>
+                    {% else %}
+                        <p class="text-slate-500 text-sm">Žádní aktivní uživatelé</p>
+                    {% endfor %}
+                </div>
+                {{ form_errors(form.assignedUsers) }}
+            </div>
+            
+            {# Akce #}
+            <div class="flex items-center justify-end space-x-4 pt-4 border-t border-slate-200">
+                <a href="{{ path('app_zakazka_list') }}" class="px-5 py-2.5 text-slate-700 font-medium hover:bg-slate-100 rounded-xl transition-colors">
+                    Zrušit
+                </a>
+                <button type="submit" class="px-5 py-2.5 bg-[rgb(241,97,1)] hover:bg-[rgb(220,88,0)] text-white font-medium rounded-xl shadow-lg shadow-[rgb(241,97,1)]/30 hover:shadow-[rgb(241,97,1)]/40 transition-all">
+                    Vytvořit zakázku
+                </button>
+            </div>
+            
+            {{ form_end(form) }}
+        </div>
+    </div>
+</div>
+{% endblock %}

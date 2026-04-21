@@ -1,0 +1,154 @@
+{#
+    Univerzální vyhledávací select komponenta
+    
+    Použití:
+    {% include 'components/_search_select.html.twig' with {
+        id: 'mySelect',
+        label: 'Zakázka',
+        placeholder: 'Bez zakázky',
+        items: zakazky,
+        itemIdField: 'id',
+        itemLabelField: 'name',
+        selectedId: selectedZakazka.id|default(''),
+        selectedLabel: selectedZakazka.name|default('Bez zakázky'),
+        emptyOption: true,
+        emptyLabel: 'Bez zakázky',
+        disabled: false,
+        required: false
+    } %}
+#}
+
+{% set uniqueId = id|default('searchSelect' ~ random()) %}
+{% set inputName = inputName|default(name|default(uniqueId)) %}
+
+{# Input field #}
+<div class="search-select-wrapper">
+    {% if label is defined and label %}
+    <label class="block text-sm font-medium text-slate-700 mb-2">{{ label }}{% if required|default(false) %} <span class="text-red-500">*</span>{% endif %}</label>
+    {% endif %}
+    
+    <div class="flex gap-2">
+        <div class="flex-1 relative">
+            <input type="text" 
+                   id="{{ uniqueId }}_display" 
+                   readonly 
+                   class="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-slate-700 text-sm bg-white cursor-pointer focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-[rgb(241,97,1)] transition-colors{% if disabled|default(false) %} bg-slate-50 cursor-not-allowed{% endif %}" 
+                   value="{{ selectedLabel|default(emptyLabel|default('Vyberte...')) }}"
+                   {% if disabled|default(false) %}disabled{% endif %}
+                   onclick="openSearchModal_{{ uniqueId }}()">
+            <input type="hidden" 
+                   id="{{ uniqueId }}" 
+                   name="{{ inputName }}"
+                   value="{{ selectedId|default('') }}"
+                   {% if required|default(false) %}required{% endif %}>
+        </div>
+        {% if not disabled|default(false) %}
+        <button type="button" onclick="openSearchModal_{{ uniqueId }}()" class="px-3 py-2.5 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-slate-400 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+{# Modal #}
+<div id="{{ uniqueId }}_modal" class="fixed inset-0 z-[9999] hidden">
+    <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" onclick="closeSearchModal_{{ uniqueId }}()"></div>
+    <div class="fixed inset-0 flex items-start justify-center p-4 pt-20">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full relative">
+            <div class="p-4 border-b border-slate-200">
+                <div class="flex items-center gap-3">
+                    <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <input type="text" id="{{ uniqueId }}_search" 
+                           class="flex-1 text-sm text-slate-700 placeholder-slate-400 outline-none" 
+                           placeholder="{{ searchPlaceholder|default('Hledat...') }}"
+                           oninput="filterItems_{{ uniqueId }}(this.value)">
+                    <button type="button" onclick="closeSearchModal_{{ uniqueId }}()" class="text-slate-400 hover:text-slate-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div id="{{ uniqueId }}_list" class="max-h-80 overflow-y-auto">
+                {# Empty option #}
+                {% if emptyOption|default(true) %}
+                <button type="button" onclick="selectItem_{{ uniqueId }}('', '{{ emptyLabel|default('Vyberte...')|e('js') }}')" 
+                        class="search-item-{{ uniqueId }} w-full px-4 py-3 text-left text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-3 border-b border-slate-100" 
+                        data-name="{{ emptyLabel|default('vyberte')|lower }}">
+                    <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                        </svg>
+                    </div>
+                    <span>{{ emptyLabel|default('Vyberte...') }}</span>
+                </button>
+                {% endif %}
+                
+                {# Items #}
+                {% for item in items|default([]) %}
+                {% set itemId = attribute(item, itemIdField|default('id')) %}
+                {% set itemLabel = attribute(item, itemLabelField|default('name')) %}
+                <button type="button" onclick="selectItem_{{ uniqueId }}('{{ itemId }}', '{{ itemLabel|e('js') }}')" 
+                        class="search-item-{{ uniqueId }} w-full px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 border-b border-slate-100 last:border-0" 
+                        data-name="{{ itemLabel|lower }}">
+                    <div class="w-8 h-8 rounded-lg bg-[rgb(241,97,1)]/10 flex items-center justify-center">
+                        {% if icon is defined %}
+                            {{ icon|raw }}
+                        {% else %}
+                        <svg class="w-4 h-4 text-[rgb(241,97,1)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                        </svg>
+                        {% endif %}
+                    </div>
+                    <span>{{ itemLabel }}</span>
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# JavaScript #}
+<script>
+function openSearchModal_{{ uniqueId }}() {
+    document.getElementById('{{ uniqueId }}_modal').classList.remove('hidden');
+    const searchInput = document.getElementById('{{ uniqueId }}_search');
+    searchInput.value = '';
+    searchInput.focus();
+    filterItems_{{ uniqueId }}('');
+}
+
+function closeSearchModal_{{ uniqueId }}() {
+    document.getElementById('{{ uniqueId }}_modal').classList.add('hidden');
+}
+
+function filterItems_{{ uniqueId }}(query) {
+    const items = document.querySelectorAll('.search-item-{{ uniqueId }}');
+    const q = query.toLowerCase().trim();
+    items.forEach(item => {
+        const name = item.dataset.name;
+        item.style.display = (q === '' || name.includes(q)) ? 'flex' : 'none';
+    });
+}
+
+function selectItem_{{ uniqueId }}(id, label) {
+    document.getElementById('{{ uniqueId }}').value = id;
+    document.getElementById('{{ uniqueId }}_display').value = label;
+    closeSearchModal_{{ uniqueId }}();
+    
+    // Trigger change event
+    const event = new Event('change', { bubbles: true });
+    document.getElementById('{{ uniqueId }}').dispatchEvent(event);
+}
+
+// Close on Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && !document.getElementById('{{ uniqueId }}_modal').classList.contains('hidden')) {
+        closeSearchModal_{{ uniqueId }}();
+    }
+});
+</script>

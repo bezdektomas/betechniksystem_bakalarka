@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="cs">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <title>{% block title %}Betechnik IS{% endblock %}</title>
+        
+        {# PWA Meta tags #}
+        <meta name="theme-color" content="#f16101">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-title" content="Betechnik">
+        <meta name="application-name" content="Betechnik IS">
+        <meta name="description" content="Informační systém pro správu zakázek a docházky">
+        
+        {# Favicon a ikony #}
+        <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('img/icons/icon-96x96.png') }}">
+        <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('img/icons/icon-192x192.png') }}">
+        <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('img/icons/icon-180x180.png') }}">
+        <link rel="manifest" href="{{ asset('manifest.json') }}">
+        
+        {% block stylesheets %}{% endblock %}
+
+        {% block javascripts %}
+            {% block importmap %}{{ importmap('app') }}{% endblock %}
+        {% endblock %}
+    </head>
+    <body class="bg-slate-100 min-h-screen">
+        {% block body %}{% endblock %}
+        
+        {# PWA Install Banner – Android/Chrome #}
+        <div id="pwa-install-banner" class="hidden fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-50">
+            <div class="flex items-start gap-4">
+                <img src="{{ asset('img/icons/icon-96x96.png') }}" alt="Betechnik IS" class="w-12 h-12 rounded-xl flex-shrink-0">
+                <div class="flex-1 min-w-0">
+                    <h3 class="font-semibold text-slate-900">Nainstalovat aplikaci</h3>
+                    <p class="text-sm text-slate-500 mt-0.5">Přidejte Betechnik IS na domovskou obrazovku</p>
+                </div>
+                <button id="pwa-close" class="text-slate-400 hover:text-slate-600 p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex gap-3 mt-4">
+                <button id="pwa-dismiss" class="flex-1 px-4 py-2 text-slate-700 font-medium hover:bg-slate-100 rounded-xl transition-colors">
+                    Později
+                </button>
+                <button id="pwa-install" class="flex-1 px-4 py-2 bg-[rgb(241,97,1)] hover:bg-[rgb(220,88,0)] text-white font-medium rounded-xl transition-colors">
+                    Nainstalovat
+                </button>
+            </div>
+        </div>
+
+        {# PWA Install Banner – iOS Safari #}
+        <div id="pwa-ios-banner" class="hidden fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-50">
+            <div class="flex items-start gap-4">
+                <img src="{{ asset('img/icons/icon-96x96.png') }}" alt="Betechnik IS" class="w-12 h-12 rounded-xl flex-shrink-0">
+                <div class="flex-1 min-w-0">
+                    <h3 class="font-semibold text-slate-900">Přidat na plochu</h3>
+                    <p class="text-sm text-slate-500 mt-0.5">
+                        Klepněte na
+                        <svg class="inline w-4 h-4 mx-0.5 text-blue-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L8 6h3v8h2V6h3L12 2zm-7 14v4h14v-4h-2v2H7v-2H5z"/></svg>
+                        <strong>Sdílet</strong> a pak <strong>Přidat na plochu</strong>
+                    </p>
+                </div>
+                <button id="pwa-ios-close" class="text-slate-400 hover:text-slate-600 p-1 shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            {# Šipka dolů ukazující na Safari share bar #}
+            <div class="flex justify-center mt-3">
+                <svg class="w-6 h-6 text-slate-300 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </div>
+        </div>
+        
+        {# Service Worker Registration & PWA Install #}
+        <script>
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/sw.js');
+                });
+            }
+
+            const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+            const isInStandaloneMode = window.navigator.standalone === true;
+            const dismissed = localStorage.getItem('pwa-install-dismissed');
+            const daysSince = dismissed ? (Date.now() - parseInt(dismissed)) / 86400000 : Infinity;
+            const canShow = !dismissed || daysSince > 7;
+
+            // iOS Safari – vlastní návod
+            if (isIos && !isInStandaloneMode && canShow) {
+                const iosBanner = document.getElementById('pwa-ios-banner');
+                const iosClose = document.getElementById('pwa-ios-close');
+                setTimeout(() => iosBanner.classList.remove('hidden'), 3000);
+                iosClose.addEventListener('click', () => {
+                    localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+                    iosBanner.classList.add('hidden');
+                });
+            }
+
+            // Android/Chrome – beforeinstallprompt
+            let deferredPrompt;
+            const installBanner = document.getElementById('pwa-install-banner');
+
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                if (canShow) {
+                    setTimeout(() => installBanner.classList.remove('hidden'), 3000);
+                }
+            });
+
+            document.getElementById('pwa-install').addEventListener('click', async () => {
+                if (!deferredPrompt) return;
+                deferredPrompt.prompt();
+                await deferredPrompt.userChoice;
+                deferredPrompt = null;
+                installBanner.classList.add('hidden');
+            });
+
+            document.getElementById('pwa-dismiss').addEventListener('click', () => {
+                localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+                installBanner.classList.add('hidden');
+            });
+
+            document.getElementById('pwa-close').addEventListener('click', () => {
+                installBanner.classList.add('hidden');
+            });
+
+            window.addEventListener('appinstalled', () => {
+                installBanner.classList.add('hidden');
+                deferredPrompt = null;
+            });
+        </script>
+        <script>
+            function autoResize(el) {
+                el.style.height = 'auto';
+                el.style.height = el.scrollHeight + 'px';
+            }
+            document.addEventListener('DOMContentLoaded', () => {
+                document.querySelectorAll('textarea').forEach(el => {
+                    el.style.overflow = 'hidden';
+                    autoResize(el);
+                    el.addEventListener('input', () => autoResize(el));
+                });
+            });
+        </script>
+    <script>
+        document.addEventListener('touchmove', function(e) {
+            if (e.touches.length > 1) e.preventDefault();
+        }, { passive: false });
+    </script>
+    <script>
+        function confirmStatusChange(btn) {
+            if (confirm('Změnit status na "' + btn.dataset.statusName + '"?')) {
+                document.getElementById(btn.dataset.input).value = btn.dataset.statusId;
+                document.getElementById(btn.dataset.form).submit();
+            }
+        }
+    </script>
+    </body>
+</html>

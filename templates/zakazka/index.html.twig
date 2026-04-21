@@ -1,0 +1,296 @@
+{% extends 'layout/dashboard.html.twig' %}
+
+{% block title %}Zakázky | Betechnik IS{% endblock %}
+
+{% block content %}
+{# Header s akcemi #}
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-800">Zakázky</h1>
+        <p class="text-slate-500 mt-1">Celkem {{ zakazky.totalItemCount }} zakázek</p>
+    </div>
+    <a href="{{ path('app_zakazka_new') }}" class="inline-flex items-center justify-center px-5 py-2.5 bg-[rgb(241,97,1)] hover:bg-[rgb(220,88,0)] text-white font-medium rounded-xl shadow-lg shadow-[rgb(241,97,1)]/30 hover:shadow-[rgb(241,97,1)]/40 transition-all">
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Nová zakázka
+    </a>
+</div>
+
+{# Filtry a vyhledávání #}
+<div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-6">
+    <div class="flex flex-col lg:flex-row gap-4">
+        {# Vyhledávání #}
+        <form action="{{ path('app_zakazka_list') }}" method="get" class="flex-1">
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+                <input 
+                    type="text" 
+                    name="q" 
+                    value="{{ search }}"
+                    placeholder="Hledat zakázku..." 
+                    class="block w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent transition-all"
+                >
+            </div>
+        </form>
+        
+        {# Filtr podle statusu #}
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="{{ path('app_zakazka_list') }}" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors text-center {{ not currentStatus and not onlyMine ? 'bg-[rgb(241,97,1)] text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200' }}">
+                Vše
+            </a>
+            <a href="{{ path('app_zakazka_list', {mine: 1}) }}" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors text-center {{ onlyMine ? 'bg-[rgb(241,97,1)] text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200' }}">
+                Moje
+            </a>
+            {% for status in statusy %}
+                <a href="{{ path('app_zakazka_list', {status: status.id, mine: onlyMine ? 1 : null}) }}" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors text-center {{ currentStatus == status.id ? 'bg-[rgb(241,97,1)] text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200' }}">
+                    {{ status.name }}
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{# Flash messages #}
+{% for message in app.flashes('success') %}
+    <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+        <div class="flex items-center">
+            <svg class="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span class="text-green-700">{{ message }}</span>
+        </div>
+    </div>
+{% endfor %}
+
+{# Mobilní zobrazení - karty #}
+<div class="lg:hidden space-y-3">
+    {% for zakazka in zakazky %}
+    <a href="{{ path('app_zakazka_detail', {id: zakazka.id}) }}" class="block bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md hover:border-slate-300 transition-all">
+        <div class="flex items-start justify-between gap-3 mb-3">
+            <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-slate-800 truncate">{{ zakazka.name }}</h3>
+                {% if zakazka.assignedUsers|length > 0 %}
+                    <div class="flex items-center mt-1.5 -space-x-2">
+                        {% for user in zakazka.assignedUsers|slice(0, 3) %}
+                            {% if user.profilePicture %}
+                            <img src="{{ asset('uploads/profiles/' ~ user.profilePicture) }}" 
+                                 alt="{{ user.displayName }}"
+                                 title="{{ user.displayName }}"
+                                 class="w-6 h-6 rounded-full object-cover border-2 border-white">
+                            {% else %}
+                            <div class="w-6 h-6 rounded-full bg-slate-300 flex items-center justify-center text-xs font-medium text-slate-700 border-2 border-white" title="{{ user.displayName }}">
+                                {{ user.email|first|upper }}
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                        {% if zakazka.assignedUsers|length > 3 %}
+                            <div class="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-medium text-slate-600 border-2 border-white">
+                                +{{ zakazka.assignedUsers|length - 3 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium {{ zakazka.status.badgeClasses }} shrink-0">
+                {{ zakazka.status.name }}
+            </span>
+        </div>
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            {% if zakazka.price %}
+                <span class="text-slate-700 font-medium">{{ zakazka.price|number_format(0, ',', ' ') }} Kč</span>
+            {% endif %}
+            {% if zakazka.realizace %}
+                <span class="text-slate-500">
+                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    {{ zakazka.realizace|date('d.m.Y') }}
+                </span>
+            {% endif %}
+            <span class="text-slate-400 text-xs">Vytvořeno: {{ zakazka.createdAt|date('d.m.Y') }}</span>
+        </div>
+    </a>
+    {% else %}
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+        <svg class="w-12 h-12 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        <p class="text-slate-500 mb-4">Žádné zakázky nenalezeny</p>
+        <a href="{{ path('app_zakazka_new') }}" class="inline-flex items-center px-4 py-2 bg-[rgb(241,97,1)] hover:bg-[rgb(220,88,0)] text-white font-medium rounded-lg transition-colors">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Vytvořit první zakázku
+        </a>
+    </div>
+    {% endfor %}
+</div>
+
+{# Desktop zobrazení - tabulka #}
+<div class="hidden lg:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-slate-50">
+                <tr>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        {% set nameDir = (currentSort == 'name' and currentDirection == 'asc') ? 'desc' : 'asc' %}
+                        <a href="{{ path('app_zakazka_list', {status: currentStatus, q: search, sort: 'name', dir: nameDir}) }}" class="flex items-center gap-1 hover:text-[rgb(241,97,1)] transition-colors">
+                            Název
+                            {% if currentSort == 'name' %}
+                                <svg class="w-4 h-4 text-[rgb(241,97,1)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    {% if currentDirection == 'asc' %}
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
+                                    {% else %}
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                    {% endif %}
+                                </svg>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        {% set priceDir = (currentSort == 'price' and currentDirection == 'asc') ? 'desc' : 'asc' %}
+                        <a href="{{ path('app_zakazka_list', {status: currentStatus, q: search, sort: 'price', dir: priceDir}) }}" class="flex items-center gap-1 hover:text-[rgb(241,97,1)] transition-colors">
+                            Cena
+                            {% if currentSort == 'price' %}
+                                <svg class="w-4 h-4 text-[rgb(241,97,1)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    {% if currentDirection == 'asc' %}
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
+                                    {% else %}
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                    {% endif %}
+                                </svg>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        {% set realizaceDir = (currentSort == 'realizace' and currentDirection == 'asc') ? 'desc' : 'asc' %}
+                        <a href="{{ path('app_zakazka_list', {status: currentStatus, q: search, sort: 'realizace', dir: realizaceDir}) }}" class="flex items-center gap-1 hover:text-[rgb(241,97,1)] transition-colors">
+                            Realizace
+                            {% if currentSort == 'realizace' %}
+                                <svg class="w-4 h-4 text-[rgb(241,97,1)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    {% if currentDirection == 'asc' %}
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
+                                    {% else %}
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                    {% endif %}
+                                </svg>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        {% set createdDir = (currentSort == 'createdAt' and currentDirection == 'asc') ? 'desc' : 'asc' %}
+                        <a href="{{ path('app_zakazka_list', {status: currentStatus, q: search, sort: 'createdAt', dir: createdDir}) }}" class="flex items-center gap-1 hover:text-[rgb(241,97,1)] transition-colors">
+                            Vytvořeno
+                            {% if currentSort == 'createdAt' %}
+                                <svg class="w-4 h-4 text-[rgb(241,97,1)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    {% if currentDirection == 'asc' %}
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
+                                    {% else %}
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                    {% endif %}
+                                </svg>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th class="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Akce</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                {% for zakazka in zakazky %}
+                <tr class="hover:bg-slate-50 transition-colors cursor-pointer" onclick="window.location='{{ path('app_zakazka_detail', {id: zakazka.id}) }}'">
+                    <td class="px-6 py-4">
+                        <span class="font-medium text-slate-800">
+                            {{ zakazka.name }}
+                        </span>
+                        {% if zakazka.assignedUsers|length > 0 %}
+                            <div class="flex items-center mt-1 -space-x-2">
+                                {% for user in zakazka.assignedUsers|slice(0, 3) %}
+                                    {% if user.profilePicture %}
+                                    <img src="{{ asset('uploads/profiles/' ~ user.profilePicture) }}" 
+                                         alt="{{ user.displayName }}"
+                                         title="{{ user.displayName }}"
+                                         class="w-6 h-6 rounded-full object-cover border-2 border-white">
+                                    {% else %}
+                                    <div class="w-6 h-6 rounded-full bg-slate-300 flex items-center justify-center text-xs font-medium text-slate-700 border-2 border-white" title="{{ user.displayName }}">
+                                        {{ user.email|first|upper }}
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if zakazka.assignedUsers|length > 3 %}
+                                    <div class="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-medium text-slate-600 border-2 border-white">
+                                        +{{ zakazka.assignedUsers|length - 3 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-slate-600">
+                        {% if zakazka.price %}
+                            {{ zakazka.price|number_format(0, ',', ' ') }} Kč
+                        {% else %}
+                            <span class="text-slate-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium {{ zakazka.status.badgeClasses }}">
+                            {{ zakazka.status.name }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-slate-600">
+                        {% if zakazka.realizace %}
+                            {{ zakazka.realizace|date('d.m.Y') }}
+                        {% else %}
+                            <span class="text-slate-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-slate-500 text-sm">
+                        {{ zakazka.createdAt|date('d.m.Y') }}
+                    </td>
+                    <td class="px-6 py-4 text-right" onclick="event.stopPropagation()">
+                        <div class="flex items-center justify-end space-x-2">
+                            <a href="{{ path('app_zakazka_detail', {id: zakazka.id}) }}" class="p-2 text-slate-400 hover:text-[rgb(241,97,1)] hover:bg-slate-100 rounded-lg transition-colors" title="Detail">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                            </a>
+                            <a href="{{ path('app_zakazka_edit', {id: zakazka.id}) }}" class="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Upravit">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                </svg>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center">
+                        <div class="flex flex-col items-center">
+                            <svg class="w-12 h-12 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                            <p class="text-slate-500 mb-4">Žádné zakázky nenalezeny</p>
+                            <a href="{{ path('app_zakazka_new') }}" class="inline-flex items-center px-4 py-2 bg-[rgb(241,97,1)] hover:bg-[rgb(220,88,0)] text-white font-medium rounded-lg transition-colors">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                                Vytvořit první zakázku
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{# Paginace #}
+{{ knp_pagination_render(zakazky) }}
+{% endblock %}

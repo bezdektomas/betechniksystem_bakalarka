@@ -1,0 +1,21 @@
+{
+  "token_hmac_secret_key": "",
+  "api_key": "",
+  "admin": true,
+  "admin_password": "",
+  "admin_secret": "",
+  "allowed_origins": ["*"],
+  "log_level": "info",
+  "engine": "memory",
+  "namespaces": [
+    {
+      "name": "chat",
+      "presence": true,
+      "join_leave": true,
+      "history_size": 100,
+      "history_ttl": "24h",
+      "force_recovery": true,
+      "allow_subscribe_for_anonymous": false
+    }
+  ]
+}

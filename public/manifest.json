@@ -1,0 +1,80 @@
+{
+    "name": "Betechnik IS",
+    "short_name": "Betechnik",
+    "description": "Informační systém pro správu zakázek a docházky",
+    "start_url": "/",
+    "display": "standalone",
+    "display_override": ["window-controls-overlay", "standalone"],
+    "background_color": "#f1f5f9",
+    "theme_color": "#f16101",
+    "orientation": "portrait-primary",
+    "scope": "/",
+    "lang": "cs",
+    "categories": ["business", "productivity"],
+    "icons": [
+        {
+            "src": "/img/icons/icon-72x72.png",
+            "sizes": "72x72",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "/img/icons/icon-96x96.png",
+            "sizes": "96x96",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "/img/icons/icon-128x128.png",
+            "sizes": "128x128",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "/img/icons/icon-144x144.png",
+            "sizes": "144x144",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "/img/icons/icon-152x152.png",
+            "sizes": "152x152",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "/img/icons/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "/img/icons/icon-384x384.png",
+            "sizes": "384x384",
+            "type": "image/png",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "/img/icons/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable any"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Zakázky",
+            "short_name": "Zakázky",
+            "description": "Zobrazit seznam zakázek",
+            "url": "/zakazky",
+            "icons": [{"src": "/img/icons/icon-96x96.png", "sizes": "96x96"}]
+        },
+        {
+            "name": "Docházka",
+            "short_name": "Docházka",
+            "description": "Spravovat docházku",
+            "url": "/dochazka",
+            "icons": [{"src": "/img/icons/icon-96x96.png", "sizes": "96x96"}]
+        }
+    ]
+}

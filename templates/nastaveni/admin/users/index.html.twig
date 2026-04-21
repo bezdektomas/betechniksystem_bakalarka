@@ -1,0 +1,348 @@
+{% extends 'layout/dashboard.html.twig' %}
+
+{% block title %}Správa uživatelů – Administrace{% endblock %}
+
+{% block content %}
+<div class="mx-auto">
+    {# Breadcrumb #}
+    <nav class="flex items-center gap-2 text-sm text-slate-500 mb-6">
+        <a href="{{ path('app_nastaveni_index') }}" class="hover:text-[rgb(241,97,1)] transition-colors">Nastavení</a>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <span class="text-slate-800 font-medium">Správa uživatelů</span>
+    </nav>
+
+    {# Header #}
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">Správa uživatelů</h1>
+            <p class="text-slate-500 mt-1">Správa uživatelských účtů, rolí a přístupů k zakázkám</p>
+        </div>
+        <a href="{{ path('app_nastaveni_admin_user_new') }}" 
+           class="inline-flex items-center gap-2 px-4 py-2.5 bg-[rgb(241,97,1)] hover:bg-[rgb(220,85,0)] text-white font-medium rounded-xl transition-colors shadow-sm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+            </svg>
+            Nový uživatel
+        </a>
+    </div>
+
+    {# Flash messages #}
+    {% for message in app.flashes('success') %}
+    <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+        <div class="flex items-center">
+            <svg class="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span class="text-green-700">{{ message }}</span>
+        </div>
+    </div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+    <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+        <div class="flex items-center">
+            <svg class="w-5 h-5 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+            <span class="text-red-700">{{ message }}</span>
+        </div>
+    </div>
+    {% endfor %}
+
+    {# Statistiky #}
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-slate-500">Celkem uživatelů</p>
+                    <p class="text-xl font-bold text-slate-900">{{ totalUsers }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-slate-500">Aktivních</p>
+                    <p class="text-xl font-bold text-green-600">{{ activeUsers }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-[rgb(241,97,1)]/10 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-[rgb(241,97,1)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-slate-500">Administrátorů</p>
+                    <p class="text-xl font-bold text-[rgb(241,97,1)]">{{ adminUsers }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Filtr #}
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6">
+        <form method="GET" action="{{ path('app_nastaveni_admin_users') }}" class="p-4">
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Hledat</label>
+                    <div class="relative">
+                        <input type="text" 
+                               name="search" 
+                               value="{{ search }}"
+                               placeholder="Jméno nebo email..."
+                               class="w-full px-4 py-2 pl-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent transition-all">
+                        <svg class="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Role</label>
+                    <div class="relative">
+                        <select name="role" class="w-full px-4 py-2 pr-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent transition-all appearance-none bg-white cursor-pointer">
+                            <option value="">Všechny role</option>
+                            <option value="ROLE_ADMIN" {{ roleFilter == 'ROLE_ADMIN' ? 'selected' }}>Administrátor</option>
+                            <option value="ROLE_USER" {{ roleFilter == 'ROLE_USER' ? 'selected' }}>Uživatel</option>
+                        </select>
+                        <svg class="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Stav</label>
+                    <div class="relative">
+                        <select name="status" class="w-full px-4 py-2 pr-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent transition-all appearance-none bg-white cursor-pointer">
+                            <option value="">Všechny stavy</option>
+                            <option value="active" {{ statusFilter == 'active' ? 'selected' }}>Aktivní</option>
+                            <option value="inactive" {{ statusFilter == 'inactive' ? 'selected' }}>Neaktivní</option>
+                        </select>
+                        <svg class="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="flex items-end gap-2">
+                    <button type="submit" 
+                            class="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg transition-colors">
+                        Filtrovat
+                    </button>
+                    <a href="{{ path('app_nastaveni_admin_users') }}" 
+                       class="px-4 py-2 border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors">
+                        Reset
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    {# Mobilní zobrazení - karty #}
+    <div class="lg:hidden space-y-3">
+        {% for user in pagination %}
+        <a href="{{ path('app_nastaveni_admin_user_detail', {id: user.id}) }}" class="block bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md hover:border-slate-300 transition-all">
+            <div class="flex items-center gap-3 mb-2">
+                {% if user.profilePicture %}
+                <img src="{{ asset('uploads/profiles/' ~ user.profilePicture) }}" alt="{{ user.displayName }}" class="w-10 h-10 rounded-full object-cover shrink-0">
+                {% else %}
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[rgb(241,97,1)] to-[rgb(200,70,0)] flex items-center justify-center text-white font-bold text-sm shrink-0">
+                    {{ user.displayName|first|upper }}
+                </div>
+                {% endif %}
+                <div class="flex-1 min-w-0">
+                    <p class="font-semibold text-slate-800 truncate">{{ user.displayName }}</p>
+                    <p class="text-xs text-slate-500 truncate">{{ user.email }}</p>
+                </div>
+                {% if user.isActive %}
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 shrink-0">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                        Aktivní
+                    </span>
+                {% else %}
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 shrink-0">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                        Neaktivní
+                    </span>
+                {% endif %}
+            </div>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                <div class="flex gap-1">
+                    {% if 'ROLE_ADMIN' in user.roles %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[rgb(241,97,1)]/10 text-[rgb(241,97,1)]">Admin</span>
+                    {% endif %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">Uživatel</span>
+                </div>
+                <span class="text-slate-500 text-xs">{{ user.assignedZakazkas|length }} zakázek</span>
+                <span class="text-slate-400 text-xs">Reg.: {{ user.createdAt|date('d.m.Y') }}</span>
+            </div>
+        </a>
+        {% else %}
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+            <p class="text-slate-500">Žádní uživatelé nenalezeni</p>
+        </div>
+        {% endfor %}
+        {% if pagination.pageCount > 1 %}
+        <div>{{ knp_pagination_render(pagination) }}</div>
+        {% endif %}
+    </div>
+
+    {# Desktop zobrazení - tabulka #}
+    <div class="hidden lg:block">
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Uživatel</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Role</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Zakázky</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Stav</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Registrace</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">Akce</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    {% for user in pagination %}
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                {% if user.profilePicture %}
+                                <img src="{{ asset('uploads/profiles/' ~ user.profilePicture) }}" 
+                                     alt="{{ user.displayName }}"
+                                     class="w-10 h-10 rounded-full object-cover">
+                                {% else %}
+                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[rgb(241,97,1)] to-[rgb(200,70,0)] flex items-center justify-center text-white font-bold text-sm">
+                                    {{ user.displayName|first|upper }}
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <p class="font-medium text-slate-900">{{ user.displayName }}</p>
+                                    <p class="text-sm text-slate-500">{{ user.email }}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex flex-wrap gap-1">
+                                {% if 'ROLE_ADMIN' in user.roles %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[rgb(241,97,1)]/10 text-[rgb(241,97,1)]">
+                                        Admin
+                                    </span>
+                                {% endif %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                                    Uživatel
+                                </span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="inline-flex items-center gap-1 text-sm text-slate-600">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                                </svg>
+                                {{ user.assignedZakazkas|length }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if user.isActive %}
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                    Aktivní
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                    Neaktivní
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="text-sm text-slate-500">{{ user.createdAt|date('d.m.Y') }}</span>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex items-center justify-end gap-2">
+                                <a href="{{ path('app_nastaveni_admin_user_detail', {id: user.id}) }}" 
+                                   class="p-2 text-slate-400 hover:text-[rgb(241,97,1)] hover:bg-[rgb(241,97,1)]/10 rounded-lg transition-colors"
+                                   title="Detail">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                </a>
+                                <a href="{{ path('app_nastaveni_admin_user_edit', {id: user.id}) }}" 
+                                   class="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                   title="Upravit">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center">
+                            <div class="flex flex-col items-center gap-2">
+                                <svg class="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                                <p class="text-slate-500">Žádní uživatelé nenalezeni</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Pagination #}
+        {% if pagination.pageCount > 1 %}
+        <div class="px-6 py-4 border-t border-slate-200 bg-slate-50">
+            <div class="flex items-center justify-between">
+                <p class="text-sm text-slate-500">
+                    Zobrazeno {{ pagination.currentPageOffsetStart + 1 }}–{{ pagination.currentPageOffsetEnd }} z {{ pagination.totalItemCount }}
+                </p>
+                <nav class="flex items-center gap-1">
+                    {% if pagination.currentPageNumber > 1 %}
+                    <a href="{{ path('app_nastaveni_admin_users', {page: pagination.currentPageNumber - 1, search: search, role: roleFilter, status: statusFilter}) }}"
+                       class="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">
+                        Předchozí
+                    </a>
+                    {% endif %}
+                    
+                    {% for page in pagination.paginationData.pagesInRange %}
+                        {% if page == pagination.currentPageNumber %}
+                        <span class="px-3 py-1.5 text-sm font-medium bg-[rgb(241,97,1)] text-white rounded-lg">{{ page }}</span>
+                        {% else %}
+                        <a href="{{ path('app_nastaveni_admin_users', {page: page, search: search, role: roleFilter, status: statusFilter}) }}"
+                           class="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">
+                            {{ page }}
+                        </a>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.currentPageNumber < pagination.pageCount %}
+                    <a href="{{ path('app_nastaveni_admin_users', {page: pagination.currentPageNumber + 1, search: search, role: roleFilter, status: statusFilter}) }}"
+                       class="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">
+                        Další
+                    </a>
+                    {% endif %}
+                </nav>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    </div>
+</div>
+{% endblock %}

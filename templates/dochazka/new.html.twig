@@ -1,0 +1,139 @@
+{% extends 'layout/dashboard.html.twig' %}
+
+{% block title %}Nový záznam docházky{% endblock %}
+
+{% block content %}
+
+{# Breadcrumb #}
+<nav class="flex items-center space-x-2 text-sm mb-6">
+    <a href="{{ path('app_dochazka_index') }}" class="text-slate-500 hover:text-[rgb(241,97,1)] transition-colors">Docházka</a>
+    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+    </svg>
+    <span class="text-slate-800 font-medium">Nový záznam</span>
+</nav>
+
+{# Header #}
+<div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+    <div class="flex-1">
+        <h1 class="text-2xl font-bold text-slate-800">Nový záznam docházky</h1>
+        <p class="text-slate-500 mt-1">Ruční zadání odpracovaného času</p>
+    </div>
+</div>
+
+{# Flash messages #}
+{% for message in app.flashes('success') %}
+<div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+    <div class="flex items-center">
+        <svg class="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        <span class="text-green-700">{{ message }}</span>
+    </div>
+</div>
+{% endfor %}
+{% for message in app.flashes('error') %}
+<div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+    <div class="flex items-center">
+        <svg class="w-5 h-5 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+        <span class="text-red-700">{{ message }}</span>
+    </div>
+</div>
+{% endfor %}
+
+{# Form #}
+<div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    <div class="px-6 py-4 bg-slate-50 border-b border-slate-200">
+        <h2 class="text-lg font-semibold text-slate-800">Údaje o docházce</h2>
+    </div>
+    
+    <div class="p-6">
+        {{ form_start(form, {'attr': {'class': 'space-y-6'}}) }}
+            
+            {# Datum a Zakázka grid #}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {# Datum #}
+                <div>
+                    {{ form_label(form.datum, null, {'label_attr': {'class': 'block text-sm font-medium text-slate-700 mb-2'}}) }}
+                    {{ form_widget(form.datum) }}
+                    {{ form_errors(form.datum) }}
+                </div>
+                
+                {# Zakázka - custom search select #}
+                <div>
+                    <div class="hidden">{{ form_widget(form.zakazka) }}</div>
+                    {% include 'components/_search_select.html.twig' with {
+                        id: 'dochazka_zakazka_search',
+                        label: 'Zakázka',
+                        items: form.zakazka.vars.choices,
+                        itemIdField: 'value',
+                        itemLabelField: 'label',
+                        selectedId: form.zakazka.vars.value,
+                        selectedLabel: form.zakazka.vars.value ? (form.zakazka.vars.choices|filter(c => c.value == form.zakazka.vars.value)|first).label|default('Bez zakázky') : 'Bez zakázky',
+                        emptyOption: true,
+                        emptyLabel: 'Bez zakázky',
+                        searchPlaceholder: 'Hledat zakázku...'
+                    } %}
+                    {{ form_errors(form.zakazka) }}
+                </div>
+            </div>
+            
+            {# Čas - hodiny a minuty vedle sebe #}
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Odpracovaný čas</label>
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <div class="relative">
+                            {{ form_widget(form.hodiny) }}
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400">hodin</span>
+                        </div>
+                        {{ form_errors(form.hodiny) }}
+                    </div>
+                    <div>
+                        <div class="relative">
+                            {{ form_widget(form.minutyInput) }}
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400">minut</span>
+                        </div>
+                        {{ form_errors(form.minutyInput) }}
+                    </div>
+                </div>
+                <p class="mt-1 text-xs text-slate-500">Zadejte hodiny a/nebo minuty</p>
+            </div>
+            
+            {# Popis #}
+            <div>
+                {{ form_label(form.popis, null, {'label_attr': {'class': 'block text-sm font-medium text-slate-700 mb-2'}}) }}
+                {{ form_widget(form.popis) }}
+                {{ form_errors(form.popis) }}
+            </div>
+            
+            {# Buttons #}
+            <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+                <a href="{{ path('app_dochazka_index') }}" class="px-5 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors font-medium">
+                    Zrušit
+                </a>
+                <button type="submit" class="px-5 py-2.5 bg-[rgb(241,97,1)] text-white rounded-xl hover:bg-[rgb(220,85,0)] transition-colors font-medium">
+                    Uložit záznam
+                </button>
+            </div>
+            
+        {{ form_end(form) }}
+    </div>
+</div>
+
+{# Sync search select with form field #}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchSelect = document.getElementById('dochazka_zakazka_search');
+    const formSelect = document.getElementById('dochazka_zakazka');
+    
+    if (searchSelect && formSelect) {
+        searchSelect.addEventListener('change', function() {
+            formSelect.value = this.value;
+        });
+    }
+});
+</script>
+{% endblock %}

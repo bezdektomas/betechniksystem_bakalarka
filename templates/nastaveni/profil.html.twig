@@ -1,0 +1,266 @@
+{% extends 'layout/dashboard.html.twig' %}
+
+{% block title %}Nastavení – Můj profil{% endblock %}
+
+{% block content %}
+<div>
+    {# Breadcrumb #}
+    <nav class="flex items-center gap-2 text-sm text-slate-500 mb-6">
+        <span class="text-slate-800 font-medium">Nastavení</span>
+    </nav>
+
+    {# Header #}
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">Nastavení</h1>
+            <p class="text-slate-500 mt-1">Spravujte svůj profil a účet</p>
+        </div>
+        
+        {# Odkaz na admin sekci - pouze pro adminy #}
+        {% if is_granted('ROLE_ADMIN') %}
+        <a href="{{ path('app_nastaveni_admin_users') }}" 
+           class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-xl transition-colors shadow-sm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+            </svg>
+            Správa uživatelů
+        </a>
+        {% endif %}
+    </div>
+
+    {# Flash messages #}
+    {% for message in app.flashes('success') %}
+    <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+        <div class="flex items-center">
+            <svg class="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span class="text-green-700">{{ message }}</span>
+        </div>
+    </div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+    <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+        <div class="flex items-center">
+            <svg class="w-5 h-5 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+            <span class="text-red-700">{{ message }}</span>
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {# Levý sloupec - Profilová fotka #}
+        <div class="lg:col-span-1 space-y-6">
+            {# Profilová karta #}
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="h-24 bg-gradient-to-r from-[rgb(241,97,1)] to-[rgb(200,70,0)]"></div>
+                <div class="px-6 pb-6 text-center">
+                    <div class="-mt-12 mb-4">
+                        {% if app.user.profilePicture %}
+                        <img src="{{ asset('uploads/profiles/' ~ app.user.profilePicture) }}" 
+                             alt="{{ app.user.displayName }}"
+                             class="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg mx-auto">
+                        {% else %}
+                        <div class="w-24 h-24 rounded-full bg-white border-4 border-white shadow-lg flex items-center justify-center text-3xl font-bold text-[rgb(241,97,1)] bg-[rgb(241,97,1)]/10 mx-auto">
+                            {{ app.user.displayName|first|upper }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <h2 class="text-xl font-bold text-slate-900">{{ app.user.displayName }}</h2>
+                    <p class="text-slate-500">{{ app.user.email }}</p>
+                    
+                    <div class="flex flex-wrap justify-center gap-2 mt-4">
+                        {% if 'ROLE_ADMIN' in app.user.roles %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[rgb(241,97,1)]/10 text-[rgb(241,97,1)]">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                            </svg>
+                            Admin
+                        </span>
+                        {% endif %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-700">
+                            Uživatel
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {# Nahrát fotografii #}
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-slate-900 mb-4">Profilová fotografie</h3>
+                
+                <form action="{{ path('app_nastaveni_photo') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+                    <div class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-[rgb(241,97,1)] transition-colors">
+                        <svg class="w-12 h-12 text-slate-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <input type="file" 
+                               name="photo" 
+                               id="photo" 
+                               accept="image/jpeg,image/png,image/gif,image/webp"
+                               class="hidden"
+                               onchange="this.form.submit()">
+                        <label for="photo" class="cursor-pointer">
+                            <span class="text-[rgb(241,97,1)] font-medium hover:text-[rgb(220,85,0)]">Vyberte soubor</span>
+                            <span class="text-slate-500"> nebo přetáhněte sem</span>
+                        </label>
+                        <p class="text-sm text-slate-400 mt-2">JPG, PNG, GIF, WebP (max 5MB)</p>
+                    </div>
+                </form>
+                
+                {% if app.user.profilePicture %}
+                <form action="{{ path('app_nastaveni_photo_delete') }}" method="POST" class="mt-4">
+                    <input type="hidden" name="_token" value="{{ csrf_token('delete-photo') }}">
+                    <button type="submit" 
+                            onclick="return confirm('Opravdu chcete smazat profilovou fotografii?')"
+                            class="w-full px-4 py-2 border border-red-300 text-red-600 hover:bg-red-50 font-medium rounded-lg transition-colors">
+                        <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Smazat fotografii
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Pravý sloupec - Formuláře #}
+        <div class="lg:col-span-2 space-y-6">
+            {# Změna jména #}
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-slate-900 mb-4">Osobní údaje</h3>
+                
+                <form action="{{ path('app_nastaveni_name') }}" method="POST" class="space-y-4">
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-slate-700 mb-1">Jméno</label>
+                        <input type="text" 
+                               id="name" 
+                               name="name" 
+                               value="{{ app.user.name }}"
+                               placeholder="Vaše jméno"
+                               class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent transition-all">
+                        <p class="text-sm text-slate-500 mt-1">Pokud není zadáno, zobrazí se část emailu před @</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                        <input type="email" 
+                               value="{{ app.user.email }}"
+                               disabled
+                               class="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed">
+                        <p class="text-sm text-slate-500 mt-1">Email nelze změnit. Kontaktujte administrátora.</p>
+                    </div>
+                    
+                    <div class="flex justify-end">
+                        <button type="submit" 
+                                class="px-6 py-2 bg-[rgb(241,97,1)] hover:bg-[rgb(220,85,0)] text-white font-medium rounded-lg transition-colors shadow-sm">
+                            Uložit změny
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            {# Změna hesla #}
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-slate-900 mb-4">Změna hesla</h3>
+                
+                <form action="{{ path('app_nastaveni_password') }}" method="POST" class="space-y-4">
+                    <div>
+                        <label for="current_password" class="block text-sm font-medium text-slate-700 mb-1">
+                            Aktuální heslo <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <input type="password" 
+                                   id="current_password" 
+                                   name="current_password" 
+                                   required
+                                   class="w-full px-4 py-2 pr-12 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent transition-all">
+                            <button type="button" onclick="togglePasswordField('current_password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="new_password" class="block text-sm font-medium text-slate-700 mb-1">
+                                Nové heslo <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <input type="password" 
+                                       id="new_password" 
+                                       name="new_password" 
+                                       required
+                                       minlength="6"
+                                       class="w-full px-4 py-2 pr-12 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent transition-all">
+                                <button type="button" onclick="togglePasswordField('new_password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <p class="text-sm text-slate-500 mt-1">Minimálně 6 znaků</p>
+                        </div>
+                        
+                        <div>
+                            <label for="confirm_password" class="block text-sm font-medium text-slate-700 mb-1">
+                                Potvrdit nové heslo <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <input type="password" 
+                                       id="confirm_password" 
+                                       name="confirm_password" 
+                                       required
+                                       minlength="6"
+                                       class="w-full px-4 py-2 pr-12 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent transition-all">
+                                <button type="button" onclick="togglePasswordField('confirm_password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end">
+                        <button type="submit" 
+                                class="px-6 py-2 bg-[rgb(241,97,1)] hover:bg-[rgb(220,85,0)] text-white font-medium rounded-lg transition-colors shadow-sm">
+                            Změnit heslo
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            {# Informace o účtu #}
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-slate-900 mb-4">Informace o účtu</h3>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="p-4 bg-slate-50 rounded-xl">
+                        <p class="text-sm text-slate-500 mb-1">Registrace</p>
+                        <p class="font-medium text-slate-900">{{ app.user.createdAt|date('d.m.Y H:i') }}</p>
+                    </div>
+                    <div class="p-4 bg-slate-50 rounded-xl">
+                        <p class="text-sm text-slate-500 mb-1">Počet přiřazených zakázek</p>
+                        <p class="font-medium text-slate-900">{{ app.user.assignedZakazkas|length }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePasswordField(fieldId) {
+    const input = document.getElementById(fieldId);
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+</script>
+{% endblock %}

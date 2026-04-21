@@ -1,0 +1,211 @@
+{% extends 'layout/dashboard.html.twig' %}
+
+{% block title %}Přístupy{% endblock %}
+
+{% block content %}
+
+{# Header #}
+<div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+    <div class="flex-1">
+        <h1 class="text-2xl font-bold text-slate-800">Přístupy</h1>
+        <p class="text-slate-500 mt-1">Přehled přístupových údajů</p>
+    </div>
+    <div class="flex items-center gap-3">
+        <a href="{{ path('app_pristup_new') }}" 
+           class="px-4 py-2.5 bg-[rgb(241,97,1)] text-white rounded-xl hover:bg-[rgb(220,85,0)] transition-colors font-medium flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+            </svg>
+            Nový přístup
+        </a>
+    </div>
+</div>
+
+{# Flash messages #}
+{% for message in app.flashes('success') %}
+    <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+        <div class="flex items-center">
+            <svg class="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span class="text-green-700">{{ message }}</span>
+        </div>
+    </div>
+{% endfor %}
+{% for message in app.flashes('error') %}
+    <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+        <div class="flex items-center">
+            <svg class="w-5 h-5 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+            <span class="text-red-700">{{ message }}</span>
+        </div>
+    </div>
+{% endfor %}
+
+{# Search #}
+<div class="bg-white rounded-2xl shadow-sm border border-slate-200 mb-6 p-4">
+    <form method="get" class="flex flex-col sm:flex-row gap-4">
+        <div class="flex-1">
+            <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <input type="text" 
+                       name="search" 
+                       value="{{ search }}" 
+                       placeholder="Hledat v přístupech..."
+                       class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent">
+            </div>
+        </div>
+        <button type="submit" 
+                class="px-5 py-2.5 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-colors font-medium">
+            Hledat
+        </button>
+        {% if search %}
+            <a href="{{ path('app_pristup_index') }}" 
+               class="px-5 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors font-medium">
+                Zrušit
+            </a>
+        {% endif %}
+    </form>
+</div>
+
+{# Mobilní zobrazení - karty #}
+<div class="lg:hidden space-y-3">
+    {% for pristup in pagination %}
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md hover:border-slate-300 transition-all">
+        <div class="flex items-start justify-between gap-3 mb-2">
+            <a href="{{ path('app_pristup_show', {id: pristup.id}) }}" class="flex-1 min-w-0">
+                <h3 class="font-semibold text-slate-800">{{ pristup.popis ?: '(bez popisu)' }}</h3>
+            </a>
+            <a href="{{ path('app_pristup_edit', {id: pristup.id}) }}" class="p-1.5 text-slate-400 hover:text-[rgb(241,97,1)] shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+            </a>
+        </div>
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            {% if pristup.zakazka %}
+                <span class="text-slate-600">
+                    <svg class="w-4 h-4 inline mr-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    {{ pristup.zakazka.name }}
+                </span>
+            {% endif %}
+            <span class="text-slate-400 text-xs">Vytvořeno: {{ pristup.createdAt|date('d.m.Y') }}</span>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+        <svg class="w-12 h-12 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+        </svg>
+        <p class="text-slate-500 mb-4">Zatím nemáte žádné uložené přístupy.</p>
+        <a href="{{ path('app_pristup_new') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-[rgb(241,97,1)] text-white rounded-xl hover:bg-[rgb(220,85,0)] transition-colors font-medium">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+            </svg>
+            Přidat první přístup
+        </a>
+    </div>
+    {% endfor %}
+{% if pagination.pageCount > 1 %}
+<div class="mt-4">{{ knp_pagination_render(pagination) }}</div>
+{% endif %}
+</div>
+
+{# Desktop zobrazení - tabulka #}
+<div class="hidden lg:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    {% if pagination.count > 0 %}
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Popis</th>
+                        <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Zakázka</th>
+                        <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Vytvořeno</th>
+                        <th class="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Akce</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    {% for pristup in pagination %}
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="px-6 py-4">
+                                <a href="{{ path('app_pristup_show', {id: pristup.id}) }}" class="font-medium text-slate-800 hover:text-[rgb(241,97,1)] transition-colors">
+                                    {{ pristup.popis }}
+                                </a>
+                            </td>
+                            <td class="px-6 py-4">
+                                {% if pristup.zakazka %}
+                                    <a href="{{ path('app_zakazka_detail', {id: pristup.zakazka.id}) }}"
+                                       class="text-slate-700 hover:text-[rgb(241,97,1)] transition-colors">
+                                        {{ pristup.zakazka.name }}
+                                    </a>
+                                {% else %}
+                                    <span class="text-slate-400">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-sm text-slate-500">
+                                {{ pristup.createdAt|date('d.m.Y') }}
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <div class="flex items-center justify-end gap-2">
+                                    <a href="{{ path('app_pristup_show', {id: pristup.id}) }}" 
+                                       class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-slate-600 hover:text-[rgb(241,97,1)] transition-colors"
+                                       title="Zobrazit detail">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                        Detail
+                                    </a>
+                                    <a href="{{ path('app_pristup_edit', {id: pristup.id}) }}" 
+                                       class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-slate-600 hover:text-[rgb(241,97,1)] transition-colors"
+                                       title="Upravit">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                        </svg>
+                                        Upravit
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Pagination #}
+        {% if pagination.pageCount > 1 %}
+            <div class="px-6 py-4 border-t border-slate-200">
+                {{ knp_pagination_render(pagination) }}
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="px-6 py-12 text-center">
+            <svg class="w-12 h-12 mx-auto text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+            </svg>
+            <h3 class="text-lg font-medium text-slate-800 mb-1">Žádné přístupy</h3>
+            <p class="text-slate-500 mb-4">
+                {% if search %}
+                    Pro hledaný výraz nebyly nalezeny žádné přístupy.
+                {% else %}
+                    Zatím nemáte žádné uložené přístupy.
+                {% endif %}
+            </p>
+            {% if not search %}
+                <a href="{{ path('app_pristup_new') }}" 
+                   class="inline-flex items-center gap-2 px-4 py-2 bg-[rgb(241,97,1)] text-white rounded-xl hover:bg-[rgb(220,85,0)] transition-colors font-medium">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                    </svg>
+                    Přidat první přístup
+                </a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

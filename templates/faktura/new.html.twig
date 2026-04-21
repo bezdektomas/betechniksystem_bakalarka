@@ -1,0 +1,166 @@
+{% extends 'layout/dashboard.html.twig' %}
+
+{% block title %}Nová faktura{% endblock %}
+
+{% block content %}
+{# Breadcrumb #}
+<nav class="flex items-center space-x-2 text-sm mb-6">
+    <a href="{{ path('app_faktura_index') }}" class="text-slate-500 hover:text-[rgb(241,97,1)] transition-colors">Faktury</a>
+    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+    </svg>
+    <span class="text-slate-800 font-medium">Nová faktura</span>
+</nav>
+
+{# Header #}
+<div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+    <div class="flex-1">
+        <h1 class="text-2xl font-bold text-slate-800">Nová faktura</h1>
+        <p class="text-slate-500 mt-1">Vytvořte novou fakturu k zakázce</p>
+    </div>
+</div>
+
+{# Flash messages #}
+{% for message in app.flashes('success') %}
+    <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+        <div class="flex items-center">
+            <svg class="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span class="text-green-700">{{ message }}</span>
+        </div>
+    </div>
+{% endfor %}
+{% for message in app.flashes('error') %}
+    <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+        <div class="flex items-center">
+            <svg class="w-5 h-5 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+            <span class="text-red-700">{{ message }}</span>
+        </div>
+    </div>
+{% endfor %}
+
+<div class="space-y-6">
+
+    {# Form #}
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        {{ form_start(form, {'attr': {'class': 'space-y-6', 'enctype': 'multipart/form-data'}}) }}
+        
+        {# Zakázka - custom search select #}
+        <div>
+            <div class="hidden">{{ form_widget(form.zakazka) }}</div>
+            {% include 'components/_search_select.html.twig' with {
+                id: 'faktura_zakazka_search',
+                label: 'Zakázka',
+                items: form.zakazka.vars.choices,
+                itemIdField: 'value',
+                itemLabelField: 'label',
+                selectedId: form.zakazka.vars.value,
+                selectedLabel: form.zakazka.vars.value ? (form.zakazka.vars.choices|filter(c => c.value == form.zakazka.vars.value)|first).label|default('Vyberte zakázku') : 'Vyberte zakázku',
+                emptyOption: false,
+                searchPlaceholder: 'Hledat zakázku...'
+            } %}
+            {{ form_errors(form.zakazka) }}
+        </div>
+
+        {# Adresa/Popis #}
+        <div>
+            {{ form_label(form.adresa, null, {'label_attr': {'class': 'block text-sm font-medium text-slate-700 mb-2'}}) }}
+            {{ form_widget(form.adresa, {'attr': {'class': 'w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent resize-none'}}) }}
+            {{ form_errors(form.adresa) }}
+        </div>
+
+        {# Ceny a datum grid #}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {# Cena bez DPH #}
+            <div>
+                {{ form_label(form.cenaBezDph, null, {'label_attr': {'class': 'block text-sm font-medium text-slate-700 mb-2'}}) }}
+                <div class="relative">
+                    {{ form_widget(form.cenaBezDph, {'attr': {'class': 'w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent pr-12'}}) }}
+                </div>
+                <p class="text-xs text-slate-500 mt-1">{{ form.cenaBezDph.vars.help }}</p>
+                {{ form_errors(form.cenaBezDph) }}
+            </div>
+
+            {# Datum #}
+            <div>
+                {{ form_label(form.datum, null, {'label_attr': {'class': 'block text-sm font-medium text-slate-700 mb-2'}}) }}
+                {{ form_widget(form.datum, {'attr': {'class': 'w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent'}}) }}
+                {{ form_errors(form.datum) }}
+            </div>
+        </div>
+
+        {# Status #}
+        <div>
+            {{ form_label(form.status, null, {'label_attr': {'class': 'block text-sm font-medium text-slate-700 mb-2'}}) }}
+            {{ form_widget(form.status, {'attr': {'class': 'w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent'}}) }}
+            {{ form_errors(form.status) }}
+        </div>
+
+        {# Soubor #}
+        <div>
+            {{ form_label(form.file, null, {'label_attr': {'class': 'block text-sm font-medium text-slate-700 mb-2'}}) }}
+            <div class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-[rgb(241,97,1)] transition-colors">
+                {{ form_widget(form.file, {'attr': {'class': 'block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-[rgb(241,97,1)] file:text-white hover:file:bg-[rgb(220,85,0)] cursor-pointer'}}) }}
+                <p class="text-xs text-slate-500 mt-2">{{ form.file.vars.help }}</p>
+            </div>
+            {{ form_errors(form.file) }}
+        </div>
+
+        {# Poznámka #}
+        <div>
+            {{ form_label(form.poznamka, null, {'label_attr': {'class': 'block text-sm font-medium text-slate-700 mb-2'}}) }}
+            {{ form_widget(form.poznamka, {'attr': {'class': 'w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(241,97,1)] focus:border-transparent resize-none'}}) }}
+            {{ form_errors(form.poznamka) }}
+        </div>
+
+        {# Info box #}
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div class="flex">
+                <svg class="w-5 h-5 text-blue-500 mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div class="text-sm text-blue-800">
+                    <p class="font-medium">Automatický výpočet cen</p>
+                    <p class="mt-1">Cena s DPH (21%) a cena bez daně z příjmu (79%) se automaticky dopočítá při uložení.</p>
+                </div>
+            </div>
+        </div>
+
+        {# Buttons #}
+        <div class="flex flex-col sm:flex-row gap-4 pt-4 border-t border-slate-200">
+            <button type="submit" 
+                    class="flex-1 px-6 py-3 bg-[rgb(241,97,1)] text-white font-medium rounded-xl hover:bg-[rgb(220,85,0)] transition-colors shadow-sm">
+                <span class="flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Vytvořit fakturu
+                </span>
+            </button>
+            <a href="{{ path('app_faktura_index') }}" 
+               class="px-6 py-3 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors text-center">
+                Zrušit
+            </a>
+        </div>
+
+        {{ form_end(form) }}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Sync search select with form field
+    const searchSelect = document.getElementById('faktura_zakazka_search');
+    const formSelect = document.getElementById('faktura_zakazka');
+    
+    if (searchSelect && formSelect) {
+        searchSelect.addEventListener('change', function() {
+            formSelect.value = this.value;
+        });
+    }
+});
+</script>
+{% endblock %}

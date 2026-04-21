@@ -1,0 +1,230 @@
+{% extends 'layout/dashboard.html.twig' %}
+
+{% block title %}Faktura #{{ faktura.id }}{% endblock %}
+
+{% block content %}
+{# Breadcrumb #}
+<nav class="flex items-center space-x-2 text-sm mb-6">
+    <a href="{{ path('app_faktura_index') }}" class="text-slate-500 hover:text-[rgb(241,97,1)] transition-colors">Faktury</a>
+    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+    </svg>
+    {% if faktura.zakazka %}
+        <a href="{{ path('app_zakazka_detail', {id: faktura.zakazka.id}) }}" class="text-slate-500 hover:text-[rgb(241,97,1)] transition-colors">{{ faktura.zakazka.name|length > 30 ? faktura.zakazka.name|slice(0, 30) ~ '...' : faktura.zakazka.name }}</a>
+        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+    {% endif %}
+    <span class="text-slate-800 font-medium">Faktura #{{ faktura.id }}</span>
+</nav>
+
+{# Header #}
+<div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+    <div class="flex-1">
+        <div class="flex items-center gap-3 mb-2">
+            <h1 class="text-2xl font-bold text-slate-800">Faktura #{{ faktura.id }}</h1>
+            {% if faktura.status %}
+                <span class="{{ faktura.status.badgeClasses }} px-3 py-1 rounded-full text-sm font-medium">
+                    {{ faktura.status.name }}
+                </span>
+            {% endif %}
+        </div>
+        <p class="text-slate-500">
+            {% if faktura.zakazka %}
+                Zakázka: <a href="{{ path('app_zakazka_detail', {id: faktura.zakazka.id}) }}" class="text-[rgb(241,97,1)] hover:underline">{{ faktura.zakazka.name }}</a> •
+            {% endif %}
+            Vytvořeno {{ faktura.createdAt ? faktura.createdAt|date('d.m.Y H:i') : '-' }}
+            {% if faktura.createdBy %} • {{ faktura.createdBy.displayName ?? faktura.createdBy.email }}{% endif %}
+            {% if faktura.updatedAt %} • Upraveno {{ faktura.updatedAt|date('d.m.Y H:i') }}{% endif %}
+        </p>
+    </div>
+    
+    <div class="flex items-center space-x-3">
+        {% if faktura.file %}
+            <a href="{{ path('app_faktura_file', {id: faktura.id}) }}" 
+               target="_blank"
+               class="inline-flex items-center px-4 py-2.5 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+                Soubor
+            </a>
+        {% endif %}
+        <a href="{{ path('app_faktura_edit', {id: faktura.id}) }}" 
+           class="inline-flex items-center px-4 py-2.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+            Upravit
+        </a>
+        <form action="{{ path('app_faktura_delete', {id: faktura.id}) }}" method="post" onsubmit="return confirm('Opravdu chcete smazat tuto fakturu? Tato akce je nevratná.');">
+            <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ faktura.id) }}">
+            <button type="submit" class="inline-flex items-center px-4 py-2.5 bg-white border border-red-300 text-red-600 font-medium rounded-xl hover:bg-red-50 transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                Smazat
+            </button>
+        </form>
+    </div>
+</div>
+
+{# Flash messages #}
+{% for message in app.flashes('success') %}
+    <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+        <div class="flex items-center">
+            <svg class="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span class="text-green-700">{{ message }}</span>
+        </div>
+    </div>
+{% endfor %}
+{% for message in app.flashes('error') %}
+    <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+        <div class="flex items-center">
+            <svg class="w-5 h-5 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+            <span class="text-red-700">{{ message }}</span>
+        </div>
+    </div>
+{% endfor %}
+
+<div class="space-y-6">
+    {# Ceny - hlavní karty #}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <p class="text-sm text-slate-500 mb-1">Cena bez DPH</p>
+            <p class="text-2xl font-bold text-slate-900">
+                {{ faktura.cenaBezDph ? faktura.cenaBezDph|number_format(2, ',', ' ') ~ ' Kč' : '-' }}
+            </p>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-[rgb(241,97,1)]/30 p-6 bg-gradient-to-br from-orange-50 to-white">
+            <p class="text-sm text-slate-500 mb-1">Cena s DPH</p>
+            <p class="text-2xl font-bold text-[rgb(241,97,1)]">
+                {{ faktura.cenaSDph ? faktura.cenaSDph|number_format(2, ',', ' ') ~ ' Kč' : '-' }}
+            </p>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <p class="text-sm text-slate-500 mb-1">Cena bez daně z příjmu</p>
+            <p class="text-2xl font-bold text-slate-900">
+                {{ faktura.cenaBezDaneZPrijmu ? faktura.cenaBezDaneZPrijmu|number_format(2, ',', ' ') ~ ' Kč' : '-' }}
+            </p>
+            <p class="text-xs text-slate-400 mt-1">(79% z ceny bez DPH)</p>
+        </div>
+    </div>
+
+    {# Detail info #}
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 bg-slate-50 border-b border-slate-200">
+            <h2 class="font-semibold text-slate-900">Detail faktury</h2>
+        </div>
+        <div class="p-6 space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {# Status #}
+                <div class="md:col-span-2">
+                    <p class="text-sm text-slate-500 mb-3">Status</p>
+                    <form action="{{ path('app_faktura_change_status', {id: faktura.id}) }}" method="post" id="status-form">
+                        <input type="hidden" name="_token" value="{{ csrf_token('status' ~ faktura.id) }}">
+                        <input type="hidden" name="status" id="status-input" value="{{ faktura.status ? faktura.status.id : '' }}">
+                        <div class="flex flex-wrap gap-2">
+                            {% for status in statusy %}
+                                {% set isActive = faktura.status and faktura.status.id == status.id %}
+                                <button type="button"
+                                        onclick="confirmStatusChange(this)"
+                                        data-status-id="{{ status.id }}"
+                                        data-status-name="{{ status.name }}"
+                                        data-input="status-input"
+                                        data-form="status-form"
+                                        class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all {{ status.badgeClasses }} {{ isActive ? 'ring-2 ring-offset-2 ring-current shadow-sm scale-105' : 'opacity-50 hover:opacity-90 hover:scale-105 cursor-pointer' }}">
+                                    {% if isActive %}
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                                        </svg>
+                                    {% endif %}
+                                    {{ status.name }}
+                                </button>
+                            {% endfor %}
+                        </div>
+                    </form>
+                </div>
+
+                {# Datum #}
+                <div>
+                    <p class="text-sm text-slate-500 mb-2">Datum faktury</p>
+                    <p class="text-slate-900 font-medium">
+                        {{ faktura.datum ? faktura.datum|date('d.m.Y') : '-' }}
+                    </p>
+                </div>
+
+                {# Zakázka #}
+                <div>
+                    <p class="text-sm text-slate-500 mb-2">Zakázka</p>
+                    {% if faktura.zakazka %}
+                        <a href="{{ path('app_zakazka_detail', {id: faktura.zakazka.id}) }}" 
+                           class="text-[rgb(241,97,1)] hover:underline font-medium">
+                            {{ faktura.zakazka.name }}
+                        </a>
+                    {% else %}
+                        <span class="text-slate-400">Bez zakázky</span>
+                    {% endif %}
+                </div>
+
+                {# Soubor #}
+                <div>
+                    <p class="text-sm text-slate-500 mb-2">Soubor</p>
+                    {% if faktura.file %}
+                        <a href="{{ path('app_faktura_file', {id: faktura.id}) }}" 
+                           target="_blank"
+                           class="inline-flex items-center text-[rgb(241,97,1)] hover:underline">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            {{ faktura.originalFilename ?? faktura.file }}
+                        </a>
+                    {% else %}
+                        <span class="text-slate-400">Žádný soubor</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# Adresa #}
+            {% if faktura.adresa %}
+                <div>
+                    <p class="text-sm text-slate-500 mb-2">Adresa / Popis</p>
+                    <p class="text-slate-900 whitespace-pre-line">{{ faktura.adresa }}</p>
+                </div>
+            {% endif %}
+
+            {# Poznámka #}
+            {% if faktura.poznamka %}
+                <div>
+                    <p class="text-sm text-slate-500 mb-2">Poznámka</p>
+                    <p class="text-slate-700 whitespace-pre-line bg-slate-50 rounded-xl p-4">{{ faktura.poznamka }}</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Náhled PDF (pokud je to PDF) #}
+    {% if faktura.file and faktura.file ends with '.pdf' %}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                <h2 class="font-semibold text-slate-900">Náhled souboru</h2>
+                <a href="{{ path('app_faktura_file', {id: faktura.id}) }}" 
+                   target="_blank"
+                   class="text-sm text-[rgb(241,97,1)] hover:underline">
+                    Otevřít v novém okně
+                </a>
+            </div>
+            <div class="aspect-[3/4] md:aspect-video">
+                <iframe src="{{ path('app_faktura_file', {id: faktura.id}) }}" 
+                        class="w-full h-full border-0">
+                </iframe>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

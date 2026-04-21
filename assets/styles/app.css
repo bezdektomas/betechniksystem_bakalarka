@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+    --color-primary: rgb(241, 97, 1);
+    --color-primary-hover: rgb(220, 88, 0);
+    --color-primary-light: rgba(241, 97, 1, 0.1);
+}
+
+/* Minimální custom CSS pouze pro věci, které Tailwind neumí */
+.scrollbar-thin::-webkit-scrollbar { width: 6px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+.scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
